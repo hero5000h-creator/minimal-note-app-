@@ -1,6 +1,10 @@
 package com.hanooot.notes.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -153,18 +158,33 @@ fun HomeScreen(
                                 onLongClick = { if (deletable) pendingDelete = category }
                             )
                     ) {
+                        // Colour and underline animate, so swiping between
+                        // categories reads as one continuous motion.
+                        val tabColor by animateColorAsState(
+                            targetValue = if (selected) theme.accent else TextSecondary,
+                            animationSpec = tween(220),
+                            label = "tabColor"
+                        )
+                        val underline by animateDpAsState(
+                            targetValue = if (selected) 26.dp else 0.dp,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "underline"
+                        )
                         Text(
                             (category?.label ?: "All").uppercase(),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            color = if (selected) theme.accent else TextSecondary,
+                            color = tabColor,
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
                         Box(
                             Modifier
                                 .height(2.dp)
-                                .width(if (selected) 26.dp else 0.dp)
+                                .width(underline)
                                 .background(theme.accent, RoundedCornerShape(2.dp))
                         )
                     }
@@ -239,6 +259,7 @@ private fun ViewToggleButton(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NoteList(
     notes: List<Note>,
@@ -263,7 +284,15 @@ private fun NoteList(
             NoteCard(
                 note = note,
                 category = categories.firstOrNull { it.key == note.categoryKey },
-                onClick = { onOpenNote(note) }
+                onClick = { onOpenNote(note) },
+                // Pinning a note, or completing one so it moves to Done,
+                // slides the row instead of making the list jump.
+                modifier = Modifier.animateItemPlacement(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                )
             )
         }
     }

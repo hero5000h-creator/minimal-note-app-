@@ -4,11 +4,20 @@ import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -88,6 +97,18 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Android's back button must close what is open, not the
+                // app. Without this the system default finishes the activity.
+                BackHandler(enabled = showThemes) { showThemes = false }
+                BackHandler(enabled = showNewCategory && !showThemes) { showNewCategory = false }
+                BackHandler(enabled = editing != null && !showThemes && !showNewCategory) {
+                    editing = null
+                }
+                BackHandler(
+                    enabled = showCalendar && editing == null &&
+                            !showThemes && !showNewCategory
+                ) { showCalendar = false }
+
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbar) },
                     containerColor = Bg
@@ -152,21 +173,38 @@ class MainActivity : ComponentActivity() {
                                 showCalendar = showCalendar,
                                 onToggleCalendar = { showCalendar = it }
                             )
-                            // Full-screen editor sits over the list on phones.
-                            // Surface consumes touches so taps can't fall
-                            // through to the list underneath.
-                            editing?.let { current ->
+                            // Full-screen editor slides in over the list on
+                            // phones. Surface consumes touches so taps can't
+                            // fall through to the list underneath.
+                            AnimatedVisibility(
+                                visible = editing != null,
+                                enter = slideInHorizontally(
+                                    initialOffsetX = { it },
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                                ) + fadeIn(tween(200)),
+                                exit = slideOutHorizontally(
+                                    targetOffsetX = { it },
+                                    animationSpec = tween(260, easing = FastOutLinearInEasing)
+                                ) + fadeOut(tween(180))
+                            ) {
+                                // Hold the last note while the exit animation
+                                // plays, otherwise the panel empties mid-slide.
+                                val shown = remember { mutableStateOf(editing) }
+                                editing?.let { shown.value = it }
+
                                 Surface(
                                     modifier = Modifier.fillMaxSize(),
                                     color = Bg
                                 ) {
-                                    NoteEditorScreen(
-                                        vm = vm,
-                                        initial = current,
-                                        categories = categories,
-                                        onClose = { editing = null },
-                                        onDelete = { vm.delete(it); editing = null }
-                                    )
+                                    shown.value?.let { current ->
+                                        NoteEditorScreen(
+                                            vm = vm,
+                                            initial = current,
+                                            categories = categories,
+                                            onClose = { editing = null },
+                                            onDelete = { vm.delete(it); editing = null }
+                                        )
+                                    }
                                 }
                             }
                         }
