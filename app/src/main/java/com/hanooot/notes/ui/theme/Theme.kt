@@ -1,11 +1,11 @@
 package com.hanooot.notes.ui.theme
 
 import android.content.Context
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -46,7 +46,8 @@ val AppThemes = listOf(
 fun themeByKey(key: String): AppTheme =
     AppThemes.firstOrNull { it.key == key } ?: AppThemes.first()
 
-val LocalAppTheme = CompositionLocalOf { AppThemes.first() }
+// static: the theme changes rarely, so readers need no recomposition tracking
+val LocalAppTheme = staticCompositionLocalOf { AppThemes.first() }
 
 private val Context.themeStore by preferencesDataStore("settings")
 private val THEME_KEY = stringPreferencesKey("theme")
@@ -73,7 +74,7 @@ fun NotesTheme(theme: AppTheme, content: @Composable () -> Unit) {
         outline = CardStroke,
         error = Color(0xFFFF5252)
     )
-    androidx.compose.runtime.CompositionLocalProvider(LocalAppTheme provides theme) {
+    CompositionLocalProvider(LocalAppTheme provides theme) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }
