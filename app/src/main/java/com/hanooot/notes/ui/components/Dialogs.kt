@@ -25,20 +25,28 @@ import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.Category
 import com.hanooot.notes.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+// A dialog rather than a bottom sheet: ModalBottomSheet is an experimental
+// Material3 API, and this needs no opt-in.
 @Composable
 fun ThemeSheet(
     current: AppTheme,
     onSelect: (AppTheme) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Panel) {
-        Column(Modifier.padding(horizontal = 12.dp).padding(bottom = 28.dp)) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = {
             Text(
                 "ACCENT COLOUR",
-                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted,
-                modifier = Modifier.padding(start = 10.dp, bottom = 8.dp)
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted
             )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) }
+        },
+        text = {
+        Column {
             AppThemes.forEach { t ->
                 val active = t.key == current.key
                 Row(
@@ -70,7 +78,8 @@ fun ThemeSheet(
                 }
             }
         }
-    }
+        }
+    )
 }
 
 @Composable

@@ -12,9 +12,6 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +37,7 @@ class MainActivity : ComponentActivity() {
 
     private val vm: NotesViewModel by viewModels()
 
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -91,16 +88,17 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val widthClass = calculateWindowSizeClass(this).widthSizeClass
-                // Expanded means a tablet or an unfolded foldable: show the note
-                // beside the list instead of covering it.
-                val twoPane = widthClass == WindowWidthSizeClass.Expanded
-
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbar) },
                     containerColor = Bg
                 ) { padding ->
-                    Box(Modifier.padding(padding)) {
+                    // BoxWithConstraints measures the real window width, so the
+                    // layout adapts without the experimental WindowSizeClass API
+                    // or its extra dependency.
+                    BoxWithConstraints(Modifier.padding(padding)) {
+                        // Wide enough for the note to sit beside the list:
+                        // a tablet, or an unfolded foldable.
+                        val twoPane = maxWidth >= 840.dp
                         if (twoPane) {
                             Row(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(0.42f)) {
@@ -116,7 +114,10 @@ class MainActivity : ComponentActivity() {
                                         onToggleCalendar = { showCalendar = it }
                                     )
                                 }
-                                VerticalDivider(color = CardStroke)
+                                Box(
+                                    Modifier.fillMaxHeight().width(1.dp)
+                                        .background(CardStroke)
+                                )
                                 Box(Modifier.weight(0.58f)) {
                                     val current = editing
                                     if (current == null) {

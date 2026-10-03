@@ -1,7 +1,8 @@
 package com.hanooot.notes.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,7 +25,6 @@ import com.hanooot.notes.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteCard(
     note: Note,
@@ -35,14 +35,16 @@ fun NoteCard(
     val accent = categoryColor(category)
     val complete = note.categoryKey == Category.DONE_KEY
 
-    Card(
-        onClick = onClick,
+    // A plain Box rather than Card(onClick = …): the clickable Card overload is
+    // an experimental Material3 API, and this needs no opt-in.
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bg),
-        border = BorderStroke(1.dp, CardStroke)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Bg)
+            .border(1.dp, CardStroke, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

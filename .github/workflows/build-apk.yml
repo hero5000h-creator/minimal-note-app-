@@ -8,10 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -21,18 +22,64 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --console=plain 2>&1 | tee build.log
 
-      - uses: actions/upload-artifact@v4
+      # Compile errors are re-emitted as GitHub annotations. Annotations are
+      # readable through the API, unlike the raw log, so the failure can be
+      # diagnosed without anyone copying text out of the web UI.
+      - name: Publish errors as annotations
+        if: steps.build.outcome == 'failure'
+        run: |
+          STRIP='s|file:///home/runner/work/[^/]*/[^/]*/||'
+
+          if grep -q "^e: " build.log; then
+            grep "^e: " build.log | sed "$STRIP" | head -40 | while IFS= read -r line; do
+              clean=$(printf '%s' "$line" | sed 's|^e: ||' | tr '\n' ' ')
+              echo "::error title=Kotlin::${clean}"
+            done
+          fi
+
+          if grep -q "What went wrong" build.log; then
+            sed -n '/What went wrong/,/^\* Try:/p' build.log \
+              | sed "$STRIP" | head -20 | while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              echo "::error title=Gradle::${line}"
+            done
+          fi
+
+          # Nothing matched: surface the tail so there is always something to read
+          if ! grep -q "^e: \|What went wrong" build.log; then
+            tail -25 build.log | while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              echo "::error title=Tail::${line}"
+            done
+          fi
+
+          {
+            echo "## Build failed"
+            echo '```'
+            grep "^e: " build.log | sed "$STRIP" | head -60 || tail -40 build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit 1
+
+      - name: Upload APK
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
         with:
           name: notes-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Upload reports if the build failed
-        if: failure()
+      - name: Upload full log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-reports
-          path: app/build/reports/
+          name: build-log
+          path: build.log
           if-no-files-found: ignore

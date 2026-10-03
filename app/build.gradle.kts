@@ -53,10 +53,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation")
 
-    // Adapts the layout to foldables / tablets
-    implementation("androidx.compose.material3:material3-window-size-class")
-    implementation("androidx.window:window:1.3.0")
-
     // Local storage
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")

@@ -179,7 +179,9 @@ fun HomeScreen(
                         .padding(vertical = 12.dp)
                 )
             }
-            HorizontalDivider(color = CardStroke)
+            Box(
+                Modifier.fillMaxWidth().height(1.dp).background(CardStroke)
+            )
         }
 
         if (showCalendar) {

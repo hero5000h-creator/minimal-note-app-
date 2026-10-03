@@ -91,13 +91,19 @@ fun MemoRow(
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = accent,
-                    trackColor = CardStroke
-                )
+                // Drawn by hand: the lambda-progress LinearProgressIndicator
+                // overload only exists in newer Material3 versions.
+                Box(
+                    Modifier.fillMaxWidth().height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(CardStroke)
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(progress.coerceIn(0f, 1f))
+                            .height(4.dp)
+                            .background(accent)
+                    )
+                }
                 Spacer(Modifier.height(5.dp))
                 Text(
                     formatDuration(memo.durationMs),
