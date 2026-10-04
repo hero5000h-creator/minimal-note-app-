@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,7 +33,8 @@ fun MemoRow(
     memo: Memo,
     accent: Color,
     onDelete: () -> Unit,
-    onAddTasks: () -> Unit
+    onAddTasks: () -> Unit,
+    onTranscriptChange: (String) -> Unit = {}
 ) {
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var playing by remember { mutableStateOf(false) }
@@ -121,16 +125,56 @@ fun MemoRow(
 
         if (memo.transcript.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
+            // Speech recognition mishears things, so the transcript is editable
+            // in place — and fixing it also fixes what gets pulled out as tasks.
+            var editing by remember(memo.id) { mutableStateOf(false) }
+            var draft by remember(memo.id) { mutableStateOf(memo.transcript) }
+
             Column(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, CardStroke, RoundedCornerShape(12.dp))
+                    .border(
+                        1.dp,
+                        if (editing) accent else CardStroke,
+                        RoundedCornerShape(12.dp)
+                    )
                     .padding(13.dp)
             ) {
-                Text("TRANSCRIPT", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = TextMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("TRANSCRIPT", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                        color = TextMuted)
+                    Spacer(Modifier.weight(1f))
+                    if (editing) {
+                        TextButton(onClick = {
+                            draft = memo.transcript; editing = false
+                        }) { Text("Cancel", fontSize = 12.sp, color = TextMuted) }
+                        TextButton(onClick = {
+                            onTranscriptChange(draft.trim()); editing = false
+                        }) { Text("Save", fontSize = 12.sp, color = accent) }
+                    } else {
+                        IconButton(
+                            onClick = { draft = memo.transcript; editing = true },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Edit, "Edit transcript",
+                                tint = TextMuted, modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
-                Text(memo.transcript, fontSize = 14.sp, color = TextPrimary)
+                if (editing) {
+                    BasicTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        textStyle = TextStyle(color = TextPrimary, fontSize = 14.sp),
+                        cursorBrush = SolidColor(accent),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Text(memo.transcript, fontSize = 14.sp, color = TextPrimary)
+                }
             }
 
             val taskCount = remember(memo.transcript) {

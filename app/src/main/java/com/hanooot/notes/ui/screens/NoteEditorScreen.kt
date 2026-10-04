@@ -36,7 +36,10 @@ import com.hanooot.notes.NotesViewModel
 import com.hanooot.notes.audio.TaskExtractor
 import com.hanooot.notes.calendar.CalendarExport
 import com.hanooot.notes.data.*
+import com.hanooot.notes.ui.components.ChecklistRow
+import com.hanooot.notes.ui.components.DateRow
 import com.hanooot.notes.ui.components.MemoRow
+import com.hanooot.notes.ui.components.RecordingPanel
 import com.hanooot.notes.ui.components.ReminderMenu
 import com.hanooot.notes.ui.theme.*
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -363,6 +366,11 @@ fun NoteEditorScreen(
                         vm.deleteMemoFile(memo)
                         memos = memos.filterNot { it.id == memo.id }
                     },
+                    onTranscriptChange = { fixed ->
+                        memos = memos.map {
+                            if (it.id == memo.id) it.copy(transcript = fixed) else it
+                        }
+                    },
                     onAddTasks = {
                         val found = TaskExtractor.extract(memo.transcript)
                         val existing = checklist.map { it.text.trim().lowercase() }.toSet()
@@ -403,203 +411,4 @@ private fun recorder_stop(
     val text = vm.transcriber.stop()
     val result = vm.recorder.stop()
     if (result != null) onSaved(result.first, result.second, text)
-}
-
-@Composable
-private fun ChecklistRow(
-    item: ChecklistItem,
-    accent: Color,
-    onToggle: () -> Unit,
-    onTextChange: (String) -> Unit,
-    onRemove: () -> Unit
-) {
-    // Only the checkbox animates; the row itself stays put so ticking an item
-    // never looks like the whole list reloaded.
-    val scale by animateFloatAsState(
-        targetValue = if (item.done) 1f else 0.9f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "check"
-    )
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier
-                .size(22.dp)
-                .clip(CircleShape)
-                .background(if (item.done) DoneGreen else Color.Transparent)
-                .border(
-                    2.dp,
-                    if (item.done) DoneGreen else TextSecondary,
-                    CircleShape
-                )
-                .clickable { onToggle() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (item.done) {
-                Icon(
-                    Icons.Filled.Check, null, tint = Color.White,
-                    modifier = Modifier.size(14.dp * scale)
-                )
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        BasicTextField(
-            value = item.text,
-            onValueChange = onTextChange,
-            textStyle = TextStyle(
-                color = if (item.done) TextMuted else TextPrimary,
-                fontSize = 16.sp,
-                textDecoration = if (item.done) TextDecoration.LineThrough else null
-            ),
-            cursorBrush = SolidColor(accent),
-            decorationBox = { inner ->
-                if (item.text.isEmpty()) Text("List item", color = TextMuted, fontSize = 16.sp)
-                inner()
-            },
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Filled.Close, "Remove", tint = TextMuted,
-                modifier = Modifier.size(15.dp))
-        }
-    }
-}
-
-@Composable
-private fun DateRow(
-    dueAt: Long?,
-    onPick: (Long) -> Unit,
-    onClear: () -> Unit
-) {
-    val context = LocalContext.current
-    val fmt = remember { SimpleDateFormat("EEE, MMM d · h:mm a", Locale.getDefault()) }
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, CardStroke, RoundedCornerShape(12.dp))
-            .clickable {
-                val cal = Calendar.getInstance().apply {
-                    timeInMillis = dueAt ?: System.currentTimeMillis()
-                    if (dueAt == null) { add(Calendar.HOUR_OF_DAY, 1); set(Calendar.MINUTE, 0) }
-                }
-                android.app.DatePickerDialog(
-                    context,
-                    { _, y, m, d ->
-                        cal.set(y, m, d)
-                        android.app.TimePickerDialog(
-                            context,
-                            { _, h, min ->
-                                cal.set(Calendar.HOUR_OF_DAY, h)
-                                cal.set(Calendar.MINUTE, min)
-                                cal.set(Calendar.SECOND, 0)
-                                onPick(cal.timeInMillis)
-                            },
-                            cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), false
-                        ).show()
-                    },
-                    cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-                ).show()
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Event, null, tint = TextSecondary, modifier = Modifier.size(17.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(
-            dueAt?.let { fmt.format(Date(it)) } ?: "Add date & reminder",
-            color = if (dueAt == null) TextSecondary else TextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f)
-        )
-        if (dueAt != null) {
-            IconButton(onClick = onClear, modifier = Modifier.size(26.dp)) {
-                Icon(Icons.Filled.Close, "Remove date", tint = TextMuted,
-                    modifier = Modifier.size(14.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecordingPanel(
-    elapsedMs: Long,
-    level: Float,
-    transcript: String,
-    onStop: () -> Unit
-) {
-    val red = Color(0xFFFF3B30)
-    Column {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, red.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
-                .background(red.copy(alpha = 0.07f))
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val pulse by rememberInfiniteTransition(label = "rec").animateFloat(
-                initialValue = 1f, targetValue = 0.35f,
-                animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
-                label = "dot"
-            )
-            Box(Modifier.size(10.dp).clip(CircleShape)
-                .background(red.copy(alpha = pulse)))
-            Spacer(Modifier.width(12.dp))
-            Text(
-                formatElapsed(elapsedMs),
-                color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.width(12.dp))
-
-            // Simple live level meter driven by the recorder's amplitude
-            Row(
-                Modifier.weight(1f).height(26.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(20) { i ->
-                    val h = (0.15f + level * (0.4f + 0.6f * ((i % 5) / 5f))).coerceIn(0.12f, 1f)
-                    Box(
-                        Modifier.weight(1f).padding(horizontal = 1.dp)
-                            .fillMaxHeight(h)
-                            .background(LocalAppTheme.current.accent)
-                    )
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            Box(
-                Modifier.size(32.dp).clip(CircleShape).background(red)
-                    .clickable { onStop() },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(Modifier.size(11.dp).background(Color.White))
-            }
-        }
-
-        if (transcript.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Column(
-                Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, CardStroke, RoundedCornerShape(12.dp))
-                    .padding(13.dp)
-            ) {
-                Text("TRANSCRIPT", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = TextMuted)
-                Spacer(Modifier.height(6.dp))
-                Text(transcript, fontSize = 14.sp, color = TextPrimary)
-            }
-        }
-    }
-}
-
-private fun formatElapsed(ms: Long): String {
-    val total = ms / 1000
-    return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
 }
