@@ -39,6 +39,9 @@ import com.hanooot.notes.data.*
 import com.hanooot.notes.ui.components.MemoRow
 import com.hanooot.notes.ui.components.ReminderMenu
 import com.hanooot.notes.ui.theme.*
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -90,6 +93,41 @@ fun NoteEditorScreen(
         remindMinutesBefore = if (dueAt == null) null else remindMins
     )
 
+    // ---- Autosave ----
+    // Saving only on back meant anything typed was lost if Android killed the
+    // app first (low memory, swiped from recents, restart). Edits are now
+    // debounced and written as you go.
+    var savedId by remember(initial.id) { mutableStateOf(initial.id) }
+
+    fun persist(onDone: (Note) -> Unit = {}) {
+        val note = currentNote().copy(id = savedId)
+        val empty = note.title.isBlank() && note.content.isBlank() &&
+                note.checklist.isEmpty() && note.memos.isEmpty()
+        if (empty) return
+        vm.save(note) { saved ->
+            savedId = saved.id
+            // The repository may have moved the note into or out of Done;
+            // mirror that so the next save doesn't fight it.
+            categoryKey = saved.categoryKey
+            onDone(saved)
+        }
+    }
+
+    LaunchedEffect(title, content, checklist, memos, categoryKey, pinned, dueAt, remindMins) {
+        delay(700)          // don't write on every keystroke
+        persist()
+    }
+
+    // Catches the case the debounce can't: the app going to the background.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) persist()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     fun saveAndClose() {
         if (recording) {
             recorder_stop(vm) { file, dur, text ->
@@ -103,10 +141,7 @@ fun NoteEditorScreen(
             }
             recording = false
         }
-        val note = currentNote()
-        val empty = note.title.isBlank() && note.content.isBlank() &&
-                note.checklist.isEmpty() && note.memos.isEmpty()
-        if (!empty) vm.save(note)
+        persist()
         onClose()
     }
 

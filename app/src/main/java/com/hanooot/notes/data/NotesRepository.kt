@@ -64,12 +64,28 @@ class NotesRepository(context: Context) {
         return SaveResult(saved, move)
     }
 
-    /** Deletes the note and the audio files it owns, so nothing is orphaned. */
+    /**
+     * Removes the row but leaves the audio on disk, so a delete can be undone.
+     * Files that end up with no note pointing at them are cleared by
+     * [purgeOrphanMemos] on the next launch.
+     */
     suspend fun delete(note: Note) {
-        note.memos.forEach { memo ->
-            runCatching { File(memo.path).takeIf { it.exists() }?.delete() }
-        }
         notes.delete(note)
+    }
+
+    /** Puts a deleted note back, keeping its original id. */
+    suspend fun restore(note: Note) {
+        notes.insert(note)
+    }
+
+    /** Deletes memo files no surviving note references. */
+    suspend fun purgeOrphanMemos() {
+        val referenced = notes.all().flatMap { it.memos }.map { it.path }.toHashSet()
+        runCatching {
+            memoDir().listFiles()?.forEach { file ->
+                if (file.absolutePath !in referenced) file.delete()
+            }
+        }
     }
 
     suspend fun deleteMemoFile(memo: Memo) {

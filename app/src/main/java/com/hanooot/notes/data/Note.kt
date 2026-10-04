@@ -42,6 +42,16 @@ data class Note(
     val isComplete: Boolean
         get() = checklist.isNotEmpty() && checklist.all { it.done }
 
+    /** Search looks at the title, the body and every checklist item. */
+    fun matches(query: String): Boolean {
+        val q = query.trim()
+        if (q.isEmpty()) return true
+        return title.contains(q, ignoreCase = true) ||
+                content.contains(q, ignoreCase = true) ||
+                checklist.any { it.text.contains(q, ignoreCase = true) } ||
+                memos.any { it.transcript.contains(q, ignoreCase = true) }
+    }
+
     val reminderAt: Long?
         get() {
             val due = dueAt ?: return null

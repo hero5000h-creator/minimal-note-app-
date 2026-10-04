@@ -13,8 +13,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 
-/** A transient message shown in a snackbar. */
-data class UiMessage(val id: Long, val text: String, val detail: String = "")
+/** A transient message shown in a snackbar, optionally with one action. */
+data class UiMessage(
+    val id: Long,
+    val text: String,
+    val detail: String = "",
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null
+)
 
 class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -40,6 +46,8 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             repo.seedDefaults()
+            // Clear audio left behind by deletes that were never undone.
+            repo.purgeOrphanMemos()
             // Alarms may have been dropped while the app was uninstalled from
             // memory; make sure everything pending is scheduled.
             ReminderScheduler.rescheduleAll(getApplication(), repo.allNotes())
@@ -77,6 +85,21 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             ReminderScheduler.cancel(getApplication(), note)
             repo.delete(note)
+            // Audio stays on disk until the undo window has passed, so the
+            // note can come back whole.
+            _messages.value = UiMessage(
+                id = System.currentTimeMillis(),
+                text = "Deleted \"${note.title.ifBlank { "Untitled" }}\"",
+                actionLabel = "Undo",
+                onAction = { restore(note) }
+            )
+        }
+    }
+
+    private fun restore(note: Note) {
+        viewModelScope.launch {
+            repo.restore(note)
+            ReminderScheduler.schedule(getApplication(), note)
         }
     }
 

@@ -89,10 +89,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(message) {
-                    message?.let {
-                        snackbar.showSnackbar(
-                            if (it.detail.isBlank()) it.text else "${it.text} · ${it.detail}"
+                    message?.let { msg ->
+                        val result = snackbar.showSnackbar(
+                            message = if (msg.detail.isBlank()) msg.text
+                                      else "${msg.text} · ${msg.detail}",
+                            actionLabel = msg.actionLabel,
+                            withDismissAction = msg.actionLabel == null,
+                            duration = if (msg.actionLabel != null) SnackbarDuration.Long
+                                       else SnackbarDuration.Short
                         )
+                        if (result == SnackbarResult.ActionPerformed) msg.onAction?.invoke()
                         vm.clearMessage()
                     }
                 }

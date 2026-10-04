@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -60,6 +64,8 @@ fun HomeScreen(
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<Category?>(null) }
+    var searchOpen by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
 
     // Confirm before removing a category the user made
     pendingDelete?.let { target ->
@@ -121,6 +127,16 @@ fun HomeScreen(
                 ViewToggleButton(Icons.Filled.CalendarMonth, showCalendar) { onToggleCalendar(true) }
             }
 
+            IconButton(onClick = {
+                searchOpen = !searchOpen
+                if (!searchOpen) query = ""
+            }) {
+                Icon(
+                    if (searchOpen) Icons.Filled.Close else Icons.Filled.Search,
+                    "Search",
+                    tint = if (searchOpen) theme.accent else TextSecondary
+                )
+            }
             IconButton(onClick = onOpenThemes) {
                 Icon(Icons.Filled.Palette, "Theme", tint = TextSecondary)
             }
@@ -131,6 +147,54 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Add, "New note", tint = Color.White)
+            }
+        }
+
+        // ---- Search ----
+        AnimatedVisibility(visible = searchOpen) {
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focus.requestFocus() }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Panel)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Search, null, tint = TextMuted,
+                    modifier = Modifier.size(17.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(
+                        color = TextPrimary, fontSize = 15.sp
+                    ),
+                    cursorBrush = SolidColor(theme.accent),
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) {
+                            Text("Search notes…", color = TextMuted, fontSize = 15.sp)
+                        }
+                        inner()
+                    },
+                    modifier = Modifier.weight(1f).focusRequester(focus)
+                )
+                if (query.isNotEmpty()) {
+                    IconButton(
+                        onClick = { query = "" },
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close, "Clear", tint = TextMuted,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -221,14 +285,20 @@ fun HomeScreen(
                 pageSpacing = 0.dp
             ) { page ->
                 val category = tabs[page]
-                val visible = remember(notes, category) {
-                    if (category == null) notes
-                    else notes.filter { it.categoryKey == category.key }
+                val visible = remember(notes, category, query) {
+                    val inTab =
+                        if (category == null) notes
+                        else notes.filter { it.categoryKey == category.key }
+                    if (query.isBlank()) inTab
+                    else inTab.filter { it.matches(query) }
                 }
                 NoteList(
                     notes = visible,
                     categories = categories,
-                    onOpenNote = onOpenNote
+                    onOpenNote = onOpenNote,
+                    emptyText = if (query.isNotBlank())
+                        "Nothing matches \"$query\""
+                    else "No notes in this category yet"
                 )
             }
         }
@@ -264,15 +334,12 @@ private fun ViewToggleButton(
 private fun NoteList(
     notes: List<Note>,
     categories: List<Category>,
-    onOpenNote: (Note) -> Unit
+    onOpenNote: (Note) -> Unit,
+    emptyText: String = "No notes in this category yet"
 ) {
     if (notes.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                "No notes in this category yet",
-                color = TextSecondary,
-                fontSize = 14.sp
-            )
+            Text(emptyText, color = TextSecondary, fontSize = 14.sp)
         }
         return
     }
