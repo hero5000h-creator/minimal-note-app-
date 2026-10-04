@@ -1,5 +1,8 @@
 name: Build APK
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main, master ]
@@ -67,6 +70,27 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           exit 1
+
+      # The GitHub mobile app cannot download workflow artifacts, and the web
+      # download hands you a zip. A release asset is a plain direct link that
+      # works in any browser, so the APK is published there too.
+      - name: Publish the APK as a release
+        if: steps.build.outcome == 'success' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          cp "$APK" notes.apk
+
+          # Re-point the moving "latest" tag at this build.
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest notes.apk \
+            --title "Latest build" \
+            --notes "Debug APK built from ${GITHUB_SHA:0:7} on $(date -u '+%Y-%m-%d %H:%M UTC')."
+
+          echo "## APK ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Direct download: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/notes.apk" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK
         if: steps.build.outcome == 'success'
