@@ -198,8 +198,6 @@ class MainActivity : ComponentActivity() {
                                         onAddCategory = { showNewCategory = true },
                                         onDeleteCategory = { vm.deleteCategory(it) },
                                         onOpenThemes = { showThemes = true },
-                                onOpenBackup = { showBackup = true },
-                                backupActive = account != null,
                                         onOpenBackup = { showBackup = true },
                                         backupActive = account != null,
                                         showCalendar = showCalendar,
