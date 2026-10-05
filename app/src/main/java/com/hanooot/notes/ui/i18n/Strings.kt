@@ -324,14 +324,14 @@ val EnglishStrings = Strings(
     backingUp = "Backing up…",
     restore = "Restore from Drive",
     restoring = "Restoring…",
-    lastBackup = { when_ -> "Last backup: ${'$'}when_" },
+    lastBackup = { at -> "Last backup: $at" },
     neverBackedUp = "Not backed up yet",
-    backupDone = { n -> "Backed up ${'$'}n note${'$'}{if (n == 1) "" else "s"}" },
+    backupDone = { n -> "Backed up $n note${if (n == 1) "" else "s"}" },
     audioUploaded = { n ->
         if (n == 0) "Notes and recordings are up to date"
-        else "${'$'}n new recording${'$'}{if (n == 1) "" else "s"} uploaded"
+        else "$n new recording${if (n == 1) "" else "s"} uploaded"
     },
-    restoreDone = { n -> "Restored ${'$'}n note${'$'}{if (n == 1) "" else "s"}" },
+    restoreDone = { n -> "Restored $n note${if (n == 1) "" else "s"}" },
     noBackupFound = "No backup in Drive yet",
     backupFailed = "Backup failed",
     signInFailed = "Sign-in failed",
@@ -496,7 +496,7 @@ val ArabicStrings = Strings(
     backingUp = "جارٍ النسخ…",
     restore = "استعادة من Drive",
     restoring = "جارٍ الاستعادة…",
-    lastBackup = { when_ -> "آخر نسخة: ${'$'}when_" },
+    lastBackup = { at -> "آخر نسخة: $at" },
     neverBackedUp = "لا توجد نسخة احتياطية بعد",
     backupDone = { n ->
         arPlural(n, "نُسخت ملاحظة واحدة", "نُسخت ملاحظتان", "نُسخت # ملاحظات", "نُسخت # ملاحظة")
