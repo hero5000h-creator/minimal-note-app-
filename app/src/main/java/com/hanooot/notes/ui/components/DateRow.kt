@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hanooot.notes.ui.i18n.LocalStrings
 import com.hanooot.notes.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,7 +32,9 @@ fun DateRow(
     onClear: () -> Unit
 ) {
     val context = LocalContext.current
-    val fmt = remember { SimpleDateFormat("EEE, MMM d · h:mm a", Locale.getDefault()) }
+    val s = LocalStrings.current
+    // Keyed on the language so switching it reformats the date immediately.
+    val fmt = remember(s.lang) { SimpleDateFormat(s.duePattern, s.locale) }
 
     Row(
         Modifier
@@ -68,7 +71,7 @@ fun DateRow(
         Icon(Icons.Filled.Event, null, tint = TextSecondary, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(10.dp))
         Text(
-            dueAt?.let { fmt.format(Date(it)) } ?: "Add date & reminder",
+            dueAt?.let { fmt.format(Date(it)) } ?: s.addDateReminder,
             color = if (dueAt == null) TextSecondary else TextPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
@@ -76,7 +79,7 @@ fun DateRow(
         )
         if (dueAt != null) {
             IconButton(onClick = onClear, modifier = Modifier.size(26.dp)) {
-                Icon(Icons.Filled.Close, "Remove date", tint = TextMuted,
+                Icon(Icons.Filled.Close, s.removeDate, tint = TextMuted,
                     modifier = Modifier.size(14.dp))
             }
         }

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hanooot.notes.ui.i18n.LocalStrings
 import com.hanooot.notes.ui.theme.*
 
 // Live recording state: pulsing dot, elapsed time, input meter, stop button,
@@ -32,6 +33,7 @@ fun RecordingPanel(
     transcript: String,
     onStop: () -> Unit
 ) {
+    val s = LocalStrings.current
     val red = Color(0xFFFF3B30)
     Column {
         Row(
@@ -89,7 +91,7 @@ fun RecordingPanel(
                     .border(1.dp, CardStroke, RoundedCornerShape(12.dp))
                     .padding(13.dp)
             ) {
-                Text("TRANSCRIPT", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                Text(s.transcriptHeading, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                     color = TextMuted)
                 Spacer(Modifier.height(6.dp))
                 Text(transcript, fontSize = 14.sp, color = TextPrimary)

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.provider.CalendarContract
 import androidx.core.content.FileProvider
 import com.hanooot.notes.data.Note
+import com.hanooot.notes.ui.i18n.AppStrings
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,7 +24,7 @@ object CalendarExport {
         val start = note.dueAt ?: return
         val intent = Intent(Intent.ACTION_INSERT).apply {
             data = CalendarContract.Events.CONTENT_URI
-            putExtra(CalendarContract.Events.TITLE, note.title.ifBlank { "Note" })
+            putExtra(CalendarContract.Events.TITLE, note.title.ifBlank { fallbackTitle() })
             putExtra(CalendarContract.Events.DESCRIPTION, describe(note))
             putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
             putExtra(CalendarContract.EXTRA_EVENT_END_TIME, start + DEFAULT_DURATION_MS)
@@ -48,7 +49,7 @@ object CalendarExport {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching {
-            context.startActivity(Intent.createChooser(share, "Add to calendar"))
+            context.startActivity(Intent.createChooser(share, AppStrings.current.addToCalendar))
         }
     }
 
@@ -85,7 +86,7 @@ object CalendarExport {
             "DTSTAMP:${stamp(System.currentTimeMillis())}",
             "DTSTART:${stamp(start)}",
             "DTEND:${stamp(start + DEFAULT_DURATION_MS)}",
-            "SUMMARY:${escape(note.title.ifBlank { "Note" })}",
+            "SUMMARY:${escape(note.title.ifBlank { fallbackTitle() })}",
             "DESCRIPTION:${escape(describe(note))}"
         )
         note.remindMinutesBefore?.let { mins ->
@@ -93,7 +94,7 @@ object CalendarExport {
                 "BEGIN:VALARM",
                 "TRIGGER:-PT${mins}M",
                 "ACTION:DISPLAY",
-                "DESCRIPTION:${escape(note.title.ifBlank { "Reminder" })}",
+                "DESCRIPTION:${escape(note.title.ifBlank { AppStrings.current.reminderFallbackTitle })}",
                 "END:VALARM"
             )
         }
@@ -101,3 +102,6 @@ object CalendarExport {
         return lines.joinToString("\r\n")
     }
 }
+
+/** Untitled notes still need a name in the calendar entry. */
+private fun fallbackTitle(): String = AppStrings.current.untitled

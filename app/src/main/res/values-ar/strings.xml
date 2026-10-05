@@ -1,0 +1,5 @@
+<resources>
+    <!-- Shown under the launcher icon when the phone itself is set to Arabic.
+         The language inside the app is a separate, in-app setting. -->
+    <string name="app_name">ملاحظاتي</string>
+</resources>

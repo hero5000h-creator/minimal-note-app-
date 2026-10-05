@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.Category
+import com.hanooot.notes.ui.i18n.Lang
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.labelOf
 import com.hanooot.notes.ui.theme.*
 
 // A dialog rather than a bottom sheet: ModalBottomSheet is an experimental
@@ -30,23 +33,73 @@ import com.hanooot.notes.ui.theme.*
 @Composable
 fun ThemeSheet(
     current: AppTheme,
+    currentLang: Lang,
     onSelect: (AppTheme) -> Unit,
+    onSelectLang: (Lang) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val s = LocalStrings.current
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Panel,
         title = {
             Text(
-                "ACCENT COLOUR",
+                s.appearance,
                 fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) }
+            TextButton(onClick = onDismiss) { Text(s.close, color = TextSecondary) }
         },
         text = {
         Column {
+            // ---- Language ----
+            // Each option is written in its own language, so it is readable
+            // whichever one is active.
+            Text(
+                s.languageHeading,
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Lang.values().forEach { option ->
+                    val active = option == currentLang
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (active) current.accent.copy(alpha = 0.16f) else Bg
+                            )
+                            .border(
+                                1.dp,
+                                if (active) current.accent else CardStroke,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable { onSelectLang(option) }
+                            .padding(vertical = 11.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            option.nativeName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (active) current.accent else TextSecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Text(
+                s.accentHeading,
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted
+            )
+            Spacer(Modifier.height(4.dp))
+
             AppThemes.forEach { t ->
                 val active = t.key == current.key
                 Row(
@@ -70,7 +123,8 @@ fun ThemeSheet(
                     Box(Modifier.size(20.dp).clip(CircleShape).background(swatch))
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        t.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                        s.themeName(t.key), fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = if (active) TextPrimary else TextSecondary
                     )
                     Spacer(Modifier.weight(1f))
@@ -92,11 +146,12 @@ fun NewCategoryDialog(
     var color by remember { mutableStateOf(CategoryColors[existing.size % CategoryColors.size]) }
     var icon by remember { mutableStateOf(CategoryIcons.first().first) }
     var error by remember { mutableStateOf("") }
+    val s = LocalStrings.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Panel,
-        title = { Text("New category", color = TextPrimary) },
+        title = { Text(s.newCategory, color = TextPrimary) },
         text = {
             Column {
                 Box(
@@ -113,14 +168,14 @@ fun NewCategoryDialog(
                         cursorBrush = SolidColor(color),
                         singleLine = true,
                         decorationBox = { inner ->
-                            if (name.isEmpty()) Text("e.g. Ideas", color = TextMuted, fontSize = 15.sp)
+                            if (name.isEmpty()) Text(s.categoryNameHint, color = TextMuted, fontSize = 15.sp)
                             inner()
                         }
                     )
                 }
 
                 Spacer(Modifier.height(16.dp))
-                Text("COLOUR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                Text(s.colourHeading, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CategoryColors.take(5).forEach { c -> Swatch(c, c == color) { color = c } }
@@ -130,13 +185,13 @@ fun NewCategoryDialog(
                     CategoryColors.drop(5).forEach { c -> Swatch(c, c == color) { color = c } }
                 }
                 Text(
-                    "Shown when the Multicolour theme is active.",
+                    s.multicolourNote,
                     fontSize = 11.sp, color = TextMuted,
                     modifier = Modifier.padding(top = 7.dp)
                 )
 
                 Spacer(Modifier.height(16.dp))
-                Text("ICON", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                Text(s.iconHeading, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted)
                 Spacer(Modifier.height(8.dp))
                 Column {
                     CategoryIcons.chunked(6).forEach { row ->
@@ -175,16 +230,19 @@ fun NewCategoryDialog(
         confirmButton = {
             TextButton(onClick = {
                 val trimmed = name.trim()
+                val taken = existing.any {
+                    it.label.equals(trimmed, ignoreCase = true) ||
+                            s.labelOf(it).equals(trimmed, ignoreCase = true)
+                }
                 when {
-                    trimmed.isEmpty() -> error = "Please enter a name."
-                    existing.any { it.label.equals(trimmed, ignoreCase = true) } ->
-                        error = "That category already exists."
+                    trimmed.isEmpty() -> error = s.enterName
+                    taken -> error = s.categoryExists
                     else -> onCreate(trimmed, color.toArgb(), icon)
                 }
-            }) { Text("Add", color = color, fontWeight = FontWeight.Bold) }
+            }) { Text(s.add, color = color, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
+            TextButton(onClick = onDismiss) { Text(s.cancel, color = TextSecondary) }
         }
     )
 }

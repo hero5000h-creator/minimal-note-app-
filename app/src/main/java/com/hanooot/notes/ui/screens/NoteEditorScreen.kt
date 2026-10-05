@@ -41,6 +41,8 @@ import com.hanooot.notes.ui.components.DateRow
 import com.hanooot.notes.ui.components.MemoRow
 import com.hanooot.notes.ui.components.RecordingPanel
 import com.hanooot.notes.ui.components.ReminderMenu
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.labelOf
 import com.hanooot.notes.ui.theme.*
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -61,6 +63,7 @@ fun NoteEditorScreen(
 ) {
     val context = LocalContext.current
     val theme = LocalAppTheme.current
+    val s = LocalStrings.current
 
     var title by remember(initial.id) { mutableStateOf(initial.title) }
     var content by remember(initial.id) { mutableStateOf(initial.content) }
@@ -84,7 +87,7 @@ fun NoteEditorScreen(
         title = title.ifBlank {
             content.take(30).ifBlank {
                 checklist.firstOrNull()?.text?.take(30)
-                    ?: if (memos.isNotEmpty()) "Voice memo" else ""
+                    ?: if (memos.isNotEmpty()) s.voiceMemoTitle else ""
             }
         },
         content = content,
@@ -152,9 +155,9 @@ fun NoteEditorScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            startRecording(vm) { recording = true }
+            startRecording(vm, s.lang.speechTag) { recording = true }
         } else {
-            vm.post("Microphone blocked", "Enable it in Settings to record memos")
+            vm.post(s.micBlocked, s.micBlockedDetail)
         }
     }
 
@@ -182,19 +185,25 @@ fun NoteEditorScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { saveAndClose() }) {
-                Icon(Icons.Filled.ArrowBack, "Back", tint = TextPrimary)
+                // The glyph is mirrored by hand: the core icon set has no
+                // auto-mirrored variant at this Compose version.
+                Icon(
+                    if (s.lang.rtl) Icons.Filled.ArrowForward else Icons.Filled.ArrowBack,
+                    s.back,
+                    tint = TextPrimary
+                )
             }
             Spacer(Modifier.weight(1f))
 
             IconButton(onClick = { pinned = !pinned }) {
                 Icon(
                     if (pinned) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                    "Pin",
+                    s.pin,
                     tint = if (pinned) theme.accent else TextSecondary
                 )
             }
             IconButton(onClick = { onDelete(currentNote()) }) {
-                Icon(Icons.Filled.Delete, "Delete", tint = TextSecondary)
+                Icon(Icons.Filled.Delete, s.delete, tint = TextSecondary)
             }
 
             Box {
@@ -203,7 +212,7 @@ fun NoteEditorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        (category?.label ?: "").uppercase(),
+                        s.labelOf(category).uppercase(),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = accent
@@ -217,7 +226,7 @@ fun NoteEditorScreen(
                 ) {
                     categories.filter { !it.system }.forEach { c ->
                         DropdownMenuItem(
-                            text = { Text(c.label, color = TextPrimary) },
+                            text = { Text(s.labelOf(c), color = TextPrimary) },
                             leadingIcon = {
                                 Icon(iconFor(c.iconName), null, tint = categoryColor(c))
                             },
@@ -241,7 +250,7 @@ fun NoteEditorScreen(
                 ),
                 cursorBrush = SolidColor(theme.accent),
                 decorationBox = { inner ->
-                    if (title.isEmpty()) Text("Title", color = TextMuted,
+                    if (title.isEmpty()) Text(s.titleHint, color = TextMuted,
                         fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     inner()
                 },
@@ -271,7 +280,7 @@ fun NoteEditorScreen(
             TextButton(onClick = {
                 checklist = checklist + ChecklistItem("")
             }) {
-                Text("+ Add item", color = TextSecondary, fontSize = 14.sp)
+                Text(s.addItem, color = TextSecondary, fontSize = 14.sp)
             }
 
             // ---- Body ----
@@ -281,7 +290,7 @@ fun NoteEditorScreen(
                 textStyle = TextStyle(color = TextSecondary, fontSize = 16.sp),
                 cursorBrush = SolidColor(theme.accent),
                 decorationBox = { inner ->
-                    if (content.isEmpty()) Text("Write more…", color = TextMuted, fontSize = 16.sp)
+                    if (content.isEmpty()) Text(s.bodyHint, color = TextMuted, fontSize = 16.sp)
                     inner()
                 },
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 90.dp)
@@ -307,13 +316,13 @@ fun NoteEditorScreen(
                     Icon(Icons.Filled.Event, null, tint = TextSecondary,
                         modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Add to calendar", color = TextSecondary, fontSize = 13.sp)
+                    Text(s.addToCalendar, color = TextSecondary, fontSize = 13.sp)
                 }
                 TextButton(
                     onClick = { CalendarExport.shareIcs(context, currentNote()) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Share as .ics", color = TextMuted, fontSize = 12.sp)
+                    Text(s.shareIcs, color = TextMuted, fontSize = 12.sp)
                 }
             }
 
@@ -345,7 +354,7 @@ fun NoteEditorScreen(
                         val granted = ContextCompat.checkSelfPermission(
                             context, Manifest.permission.RECORD_AUDIO
                         ) == PackageManager.PERMISSION_GRANTED
-                        if (granted) startRecording(vm) { recording = true }
+                        if (granted) startRecording(vm, s.lang.speechTag) { recording = true }
                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -354,7 +363,7 @@ fun NoteEditorScreen(
                     Icon(Icons.Filled.Mic, null, tint = TextSecondary,
                         modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Record voice memo", color = TextSecondary, fontSize = 14.sp)
+                    Text(s.recordMemo, color = TextSecondary, fontSize = 14.sp)
                 }
             }
 
@@ -376,14 +385,11 @@ fun NoteEditorScreen(
                         val existing = checklist.map { it.text.trim().lowercase() }.toSet()
                         val fresh = found.filter { it.trim().lowercase() !in existing }
                         if (fresh.isEmpty()) {
-                            vm.post("Already added", "Those tasks are in the list")
+                            vm.post(s.alreadyAdded, s.alreadyAddedDetail)
                         } else {
                             checklist = checklist.filter { it.text.isNotBlank() } +
                                     fresh.map { ChecklistItem(it) }
-                            vm.post(
-                                "${fresh.size} task${if (fresh.size == 1) "" else "s"} added",
-                                "From your voice memo"
-                            )
+                            vm.post(s.tasksAdded(fresh.size), s.fromVoiceMemo)
                         }
                     }
                 )
@@ -394,13 +400,19 @@ fun NoteEditorScreen(
     }
 }
 
-private fun startRecording(vm: NotesViewModel, onStarted: () -> Unit) {
+// The recogniser is told which language to expect, so Arabic dictation is
+// transcribed as Arabic rather than being forced through an English model.
+private fun startRecording(
+    vm: NotesViewModel,
+    speechTag: String,
+    onStarted: () -> Unit
+) {
     runCatching {
         vm.recorder.start(vm.memoDir())
-        if (vm.transcriber.isAvailable()) vm.transcriber.start()
+        if (vm.transcriber.isAvailable()) vm.transcriber.start(speechTag)
         onStarted()
     }.onFailure {
-        vm.post("Couldn't start recording", it.message ?: "")
+        vm.post(com.hanooot.notes.ui.i18n.AppStrings.current.cantRecord, it.message ?: "")
     }
 }
 

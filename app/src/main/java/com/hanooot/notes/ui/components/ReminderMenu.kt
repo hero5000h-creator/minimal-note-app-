@@ -21,17 +21,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hanooot.notes.ui.i18n.LocalStrings
 import com.hanooot.notes.ui.theme.*
 
-/** Reminder offsets, in minutes before the due time. null means no reminder. */
-val ReminderOptions: List<Pair<String, Int?>> = listOf(
-    "Off" to null,
-    "At time" to 0,
-    "5 min before" to 5,
-    "15 min before" to 15,
-    "1 hour before" to 60,
-    "1 day before" to 1440
-)
+// The offsets themselves live in the string table, so each language carries
+// its own wording alongside the same minute values.
 
 @Composable
 fun ReminderMenu(
@@ -39,6 +33,7 @@ fun ReminderMenu(
     onSelect: (Int?) -> Unit
 ) {
     val theme = LocalAppTheme.current
+    val s = LocalStrings.current
     var open by remember { mutableStateOf(false) }
 
     val caret by animateFloatAsState(
@@ -46,7 +41,9 @@ fun ReminderMenu(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "caret"
     )
-    val currentLabel = ReminderOptions.firstOrNull { it.second == selected }?.first ?: "Off"
+    val currentLabel =
+        s.reminderOptions.firstOrNull { it.second == selected }?.first
+            ?: s.reminderOptions.first().first
 
     Column(
         Modifier
@@ -69,7 +66,7 @@ fun ReminderMenu(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(10.dp))
-            Text("Remind me", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            Text(s.remindMe, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                 color = TextSecondary)
             Spacer(Modifier.weight(1f))
             Text(
@@ -93,7 +90,7 @@ fun ReminderMenu(
                     fadeOut(animationSpec = tween(140))
         ) {
             Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                ReminderOptions.forEach { (label, mins) ->
+                s.reminderOptions.forEach { (label, mins) ->
                     val active = mins == selected
                     Row(
                         Modifier

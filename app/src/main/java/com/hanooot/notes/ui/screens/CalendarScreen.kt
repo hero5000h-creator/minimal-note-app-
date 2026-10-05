@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.Category
 import com.hanooot.notes.data.Note
 import com.hanooot.notes.ui.components.NoteCard
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.Strings
 import com.hanooot.notes.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -41,10 +43,11 @@ fun CalendarScreen(
     modifier: Modifier = Modifier
 ) {
     val theme = LocalAppTheme.current
+    val s = LocalStrings.current
     var cursor by remember { mutableStateOf(Calendar.getInstance()) }
     var selectedKey by remember { mutableStateOf<String?>(null) }
 
-    val monthFmt = remember { SimpleDateFormat("LLLL yyyy", Locale.getDefault()) }
+    val monthFmt = remember(s.lang) { SimpleDateFormat(s.monthYearPattern, s.locale) }
 
     // Notes shown honour the category tab you're on
     val scoped = remember(notes, activeCategory) {
@@ -69,18 +72,29 @@ fun CalendarScreen(
             Spacer(Modifier.weight(1f))
             IconButton(onClick = {
                 cursor = (cursor.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
-            }) { Icon(Icons.Filled.ChevronLeft, "Previous month", tint = TextSecondary) }
+            }) {
+                // In Arabic the arrows swap: "back a month" points right.
+                Icon(
+                    if (s.lang.rtl) Icons.Filled.ChevronRight else Icons.Filled.ChevronLeft,
+                    s.prevMonth, tint = TextSecondary
+                )
+            }
             TextButton(onClick = {
                 cursor = Calendar.getInstance()
                 selectedKey = dayKey(System.currentTimeMillis())
-            }) { Text("Today", color = TextSecondary, fontSize = 12.sp) }
+            }) { Text(s.todayButton, color = TextSecondary, fontSize = 12.sp) }
             IconButton(onClick = {
                 cursor = (cursor.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
-            }) { Icon(Icons.Filled.ChevronRight, "Next month", tint = TextSecondary) }
+            }) {
+                Icon(
+                    if (s.lang.rtl) Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+                    s.nextMonth, tint = TextSecondary
+                )
+            }
         }
 
         Row(Modifier.fillMaxWidth()) {
-            listOf("S", "M", "T", "W", "T", "F", "S").forEach {
+            s.weekdayInitials.forEach {
                 Text(
                     it, Modifier.weight(1f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold,
@@ -150,12 +164,12 @@ fun CalendarScreen(
             val dayNotes = byDay[key].orEmpty().sortedBy { it.dueAt }
             Spacer(Modifier.height(16.dp))
             Text(
-                headingFor(key),
+                headingFor(key, s),
                 fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted
             )
             Spacer(Modifier.height(8.dp))
             if (dayNotes.isEmpty()) {
-                Text("Nothing scheduled.", color = TextMuted, fontSize = 14.sp)
+                Text(s.nothingScheduled, color = TextMuted, fontSize = 14.sp)
             } else {
                 LazyColumn {
                     items(dayNotes, key = { it.id }) { note ->
@@ -176,10 +190,11 @@ private fun dayKey(millis: Long): String {
     return "${c.get(Calendar.YEAR)}-${c.get(Calendar.MONTH)}-${c.get(Calendar.DAY_OF_MONTH)}"
 }
 
-private fun headingFor(key: String): String {
+private fun headingFor(key: String, s: Strings): String {
     val (y, m, d) = key.split("-").map { it.toInt() }
     val c = Calendar.getInstance().apply { set(y, m, d) }
-    return SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(c.time).uppercase()
+    return SimpleDateFormat(s.dayHeadingPattern, s.locale)
+        .format(c.time).uppercase(s.locale)
 }
 
 /** Six weeks starting from the Sunday on or before the 1st — always covers the month. */

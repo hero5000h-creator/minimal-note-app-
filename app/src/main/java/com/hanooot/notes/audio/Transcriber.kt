@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import java.util.Locale
 
 /**
  * Live speech-to-text using the on-device recogniser, running alongside the
@@ -26,7 +25,8 @@ class Transcriber(private val context: Context) {
 
     fun isAvailable(): Boolean = SpeechRecognizer.isRecognitionAvailable(context)
 
-    fun start(locale: Locale = Locale.getDefault()) {
+    /** @param languageTag a BCP-47 tag such as `ar-IQ` or `en-US`. */
+    fun start(languageTag: String) {
         if (!isAvailable()) return
         stop()
         finalText = StringBuilder()
@@ -40,7 +40,9 @@ class Transcriber(private val context: Context) {
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+            // Some recognisers honour only the preferred-language extra.
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageTag)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }

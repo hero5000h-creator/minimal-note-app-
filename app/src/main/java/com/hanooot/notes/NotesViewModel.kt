@@ -7,7 +7,10 @@ import com.hanooot.notes.audio.AudioRecorder
 import com.hanooot.notes.audio.Transcriber
 import com.hanooot.notes.data.*
 import com.hanooot.notes.reminder.ReminderScheduler
-import com.hanooot.notes.ui.theme.ThemePreference
+import com.hanooot.notes.ui.i18n.AppStrings
+import com.hanooot.notes.ui.i18n.Lang
+import com.hanooot.notes.ui.i18n.labelOf
+import com.hanooot.notes.ui.i18n.stringsFor
 import com.hanooot.notes.ui.theme.themeByKey
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -25,7 +28,7 @@ data class UiMessage(
 class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = NotesRepository(app)
-    private val themePref = ThemePreference(app)
+    private val settings = Settings(app)
 
     val recorder = AudioRecorder(app)
     val transcriber = Transcriber(app)
@@ -36,9 +39,13 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     val categories: StateFlow<List<Category>> = repo.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val theme = themePref.flow
+    val theme = settings.theme
         .map { themeByKey(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, themeByKey("red"))
+
+    val lang = settings.language
+        .map { Lang.of(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, Lang.EN)
 
     private val _messages = MutableStateFlow<UiMessage?>(null)
     val messages: StateFlow<UiMessage?> = _messages
@@ -52,9 +59,16 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
             // memory; make sure everything pending is scheduled.
             ReminderScheduler.rescheduleAll(getApplication(), repo.allNotes())
         }
+        // Notification text is built outside composition, so the scheduler and
+        // the receiver read the table from here.
+        viewModelScope.launch {
+            settings.language.collect { AppStrings.current = stringsFor(Lang.of(it)) }
+        }
     }
 
-    fun setTheme(key: String) = viewModelScope.launch { themePref.set(key) }
+    fun setTheme(key: String) = viewModelScope.launch { settings.setTheme(key) }
+
+    fun setLanguage(lang: Lang) = viewModelScope.launch { settings.setLanguage(lang.key) }
 
     suspend fun noteById(id: Long): Note? = repo.noteById(id)
 
@@ -67,13 +81,15 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
             ReminderScheduler.cancel(ctx, result.note)
             ReminderScheduler.schedule(ctx, result.note)
 
+            val s = AppStrings.current
             when (result.move) {
                 DoneMove.MOVED_TO_DONE ->
-                    post(result.note.title, "Completed — moved to Done")
+                    post(result.note.title, s.movedToDone)
                 DoneMove.MOVED_BACK -> {
-                    val label = categories.value
-                        .firstOrNull { it.key == result.note.categoryKey }?.label ?: "its category"
-                    post(result.note.title, "Reopened — moved back to $label")
+                    val category = categories.value
+                        .firstOrNull { it.key == result.note.categoryKey }
+                    val label = if (category == null) s.itsCategory else s.labelOf(category)
+                    post(result.note.title, s.reopenedInto(label))
                 }
                 DoneMove.NONE -> Unit
             }
@@ -87,10 +103,11 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
             repo.delete(note)
             // Audio stays on disk until the undo window has passed, so the
             // note can come back whole.
+            val s = AppStrings.current
             _messages.value = UiMessage(
                 id = System.currentTimeMillis(),
-                text = "Deleted \"${note.title.ifBlank { "Untitled" }}\"",
-                actionLabel = "Undo",
+                text = s.deletedNote(note.title.ifBlank { s.untitled }),
+                actionLabel = s.undo,
                 onAction = { restore(note) }
             )
         }

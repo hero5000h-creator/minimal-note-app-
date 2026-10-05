@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.hanooot.notes.data.Note
+import com.hanooot.notes.ui.i18n.AppStrings
 
 /**
  * Schedules reminders through AlarmManager, so they fire even when the app is
@@ -23,7 +24,7 @@ object ReminderScheduler {
     private fun pendingIntent(context: Context, note: Note): PendingIntent {
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(EXTRA_NOTE_ID, note.id)
-            putExtra(EXTRA_TITLE, note.title.ifBlank { "Reminder" })
+            putExtra(EXTRA_TITLE, note.title.ifBlank { AppStrings.current.reminderFallbackTitle })
             putExtra(EXTRA_BODY, reminderBody(note))
         }
         return PendingIntent.getBroadcast(
@@ -35,11 +36,14 @@ object ReminderScheduler {
     }
 
     private fun reminderBody(note: Note): String {
+        // Notification copy is built here, outside composition, so it reads
+        // the language from the shared table rather than a composition local.
+        val s = AppStrings.current
         val remaining = note.checklist.count { !it.done }
         return when {
             note.content.isNotBlank() -> note.content.take(80)
-            remaining > 0 -> "$remaining item${if (remaining == 1) "" else "s"} left"
-            else -> "Tap to open"
+            remaining > 0 -> s.itemsLeft(remaining)
+            else -> s.tapToOpen
         }
     }
 

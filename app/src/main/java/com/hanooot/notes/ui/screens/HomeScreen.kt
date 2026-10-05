@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.Category
 import com.hanooot.notes.data.Note
 import com.hanooot.notes.ui.components.NoteCard
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.tabLabelOf
 import com.hanooot.notes.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -58,6 +60,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val theme = LocalAppTheme.current
+    val s = LocalStrings.current
 
     // "All" first, then every category in order
     val tabs: List<Category?> = remember(categories) { listOf(null) + categories }
@@ -72,24 +75,22 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             containerColor = Panel,
-            title = { Text("Delete \"${target.label}\"?", color = TextPrimary) },
+            title = { Text(s.deleteCategoryTitle(target.label), color = TextPrimary) },
             text = {
                 val held = notes.count { it.categoryKey == target.key }
                 Text(
-                    if (held > 0)
-                        "Its $held note${if (held == 1) "" else "s"} will move to another category, not be deleted."
-                    else "This category has no notes.",
+                    if (held > 0) s.categoryHoldsNotes(held) else s.categoryEmpty,
                     color = TextSecondary
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteCategory(target); pendingDelete = null
-                }) { Text("Delete", color = Color(0xFFFF5252)) }
+                }) { Text(s.delete, color = Color(0xFFFF5252)) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text(s.cancel, color = TextSecondary)
                 }
             }
         )
@@ -103,14 +104,14 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Notes",
+                s.appTitle,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                "${notes.size} ${if (notes.size == 1) "note" else "notes"}",
+                s.notesCount(notes.size),
                 fontSize = 14.sp,
                 color = TextSecondary
             )
@@ -133,12 +134,12 @@ fun HomeScreen(
             }) {
                 Icon(
                     if (searchOpen) Icons.Filled.Close else Icons.Filled.Search,
-                    "Search",
+                    s.search,
                     tint = if (searchOpen) theme.accent else TextSecondary
                 )
             }
             IconButton(onClick = onOpenThemes) {
-                Icon(Icons.Filled.Palette, "Theme", tint = TextSecondary)
+                Icon(Icons.Filled.Palette, s.theme, tint = TextSecondary)
             }
             Box(
                 Modifier.size(40.dp).clip(CircleShape)
@@ -146,7 +147,7 @@ fun HomeScreen(
                     .clickable { onNewNote() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Add, "New note", tint = Color.White)
+                Icon(Icons.Filled.Add, s.newNote, tint = Color.White)
             }
         }
 
@@ -178,7 +179,7 @@ fun HomeScreen(
                     cursorBrush = SolidColor(theme.accent),
                     decorationBox = { inner ->
                         if (query.isEmpty()) {
-                            Text("Search notes…", color = TextMuted, fontSize = 15.sp)
+                            Text(s.searchHint, color = TextMuted, fontSize = 15.sp)
                         }
                         inner()
                     },
@@ -190,7 +191,7 @@ fun HomeScreen(
                         modifier = Modifier.size(22.dp)
                     ) {
                         Icon(
-                            Icons.Filled.Close, "Clear", tint = TextMuted,
+                            Icons.Filled.Close, s.clear, tint = TextMuted,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -238,7 +239,7 @@ fun HomeScreen(
                             label = "underline"
                         )
                         Text(
-                            (category?.label ?: "All").uppercase(),
+                            s.tabLabelOf(category).uppercase(),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -296,9 +297,8 @@ fun HomeScreen(
                     notes = visible,
                     categories = categories,
                     onOpenNote = onOpenNote,
-                    emptyText = if (query.isNotBlank())
-                        "Nothing matches \"$query\""
-                    else "No notes in this category yet"
+                    emptyText = if (query.isNotBlank()) s.noMatches(query)
+                                else s.emptyCategory
                 )
             }
         }
@@ -335,7 +335,7 @@ private fun NoteList(
     notes: List<Note>,
     categories: List<Category>,
     onOpenNote: (Note) -> Unit,
-    emptyText: String = "No notes in this category yet"
+    emptyText: String
 ) {
     if (notes.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

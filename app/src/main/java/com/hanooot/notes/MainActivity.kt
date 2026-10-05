@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.core.view.WindowCompat
 import com.hanooot.notes.data.Category
 import com.hanooot.notes.data.Note
@@ -35,6 +37,8 @@ import com.hanooot.notes.ui.components.NewCategoryDialog
 import com.hanooot.notes.ui.components.ThemeSheet
 import com.hanooot.notes.ui.screens.HomeScreen
 import com.hanooot.notes.ui.screens.NoteEditorScreen
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.stringsFor
 import com.hanooot.notes.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -57,8 +61,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val theme by vm.theme.collectAsState()
+            val lang by vm.lang.collectAsState()
+            val strings = remember(lang) { stringsFor(lang) }
 
+            // Arabic flips the whole layout: every Row, every start/end
+            // padding and every alignment follows the layout direction, so
+            // the interface mirrors without a second set of layouts.
+            CompositionLocalProvider(
+                LocalStrings provides strings,
+                LocalLayoutDirection provides
+                        if (lang.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+            ) {
             NotesTheme(theme) {
+                val s = strings
                 val notes by vm.notes.collectAsState()
                 val categories by vm.categories.collectAsState()
                 val message by vm.messages.collectAsState()
@@ -80,6 +95,10 @@ class MainActivity : ComponentActivity() {
                         notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
+
+                // The notification channel carries a user-visible name, so it
+                // is rewritten whenever the language changes.
+                LaunchedEffect(lang) { ReminderNotifications.ensureChannel(this@MainActivity) }
 
                 // Opened from a reminder notification
                 LaunchedEffect(openNoteId, notes) {
@@ -182,14 +201,17 @@ class MainActivity : ComponentActivity() {
                             // Full-screen editor slides in over the list on
                             // phones. Surface consumes touches so taps can't
                             // fall through to the list underneath.
+                            // Offsets are raw pixels, not direction-aware, so
+                            // the sign is flipped by hand for Arabic.
+                            val slide = if (lang.rtl) -1 else 1
                             AnimatedVisibility(
                                 visible = editing != null,
                                 enter = slideInHorizontally(
-                                    initialOffsetX = { it },
+                                    initialOffsetX = { it * slide },
                                     animationSpec = tween(320, easing = FastOutSlowInEasing)
                                 ) + fadeIn(tween(200)),
                                 exit = slideOutHorizontally(
-                                    targetOffsetX = { it },
+                                    targetOffsetX = { it * slide },
                                     animationSpec = tween(260, easing = FastOutLinearInEasing)
                                 ) + fadeOut(tween(180))
                             ) {
@@ -220,7 +242,9 @@ class MainActivity : ComponentActivity() {
                 if (showThemes) {
                     ThemeSheet(
                         current = theme,
+                        currentLang = lang,
                         onSelect = { vm.setTheme(it.key); showThemes = false },
+                        onSelectLang = { vm.setLanguage(it) },
                         onDismiss = { showThemes = false }
                     )
                 }
@@ -234,6 +258,7 @@ class MainActivity : ComponentActivity() {
                         onDismiss = { showNewCategory = false }
                     )
                 }
+            }
             }
         }
     }

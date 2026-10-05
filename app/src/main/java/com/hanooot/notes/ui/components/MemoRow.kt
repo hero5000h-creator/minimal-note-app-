@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hanooot.notes.audio.TaskExtractor
 import com.hanooot.notes.data.Memo
+import com.hanooot.notes.ui.i18n.LocalStrings
 import com.hanooot.notes.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -36,6 +37,7 @@ fun MemoRow(
     onAddTasks: () -> Unit,
     onTranscriptChange: (String) -> Unit = {}
 ) {
+    val s = LocalStrings.current
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var playing by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0f) }
@@ -88,7 +90,7 @@ fun MemoRow(
             ) {
                 Icon(
                     if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (playing) "Pause" else "Play",
+                    contentDescription = if (playing) s.pause else s.play,
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
@@ -118,7 +120,7 @@ fun MemoRow(
                 player?.release(); player = null; playing = false
                 onDelete()
             }) {
-                Icon(Icons.Filled.Delete, "Delete recording", tint = TextMuted,
+                Icon(Icons.Filled.Delete, s.deleteRecording, tint = TextMuted,
                     modifier = Modifier.size(16.dp))
             }
         }
@@ -141,23 +143,23 @@ fun MemoRow(
                     .padding(13.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("TRANSCRIPT", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    Text(s.transcriptHeading, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                         color = TextMuted)
                     Spacer(Modifier.weight(1f))
                     if (editing) {
                         TextButton(onClick = {
                             draft = memo.transcript; editing = false
-                        }) { Text("Cancel", fontSize = 12.sp, color = TextMuted) }
+                        }) { Text(s.cancel, fontSize = 12.sp, color = TextMuted) }
                         TextButton(onClick = {
                             onTranscriptChange(draft.trim()); editing = false
-                        }) { Text("Save", fontSize = 12.sp, color = accent) }
+                        }) { Text(s.save, fontSize = 12.sp, color = accent) }
                     } else {
                         IconButton(
                             onClick = { draft = memo.transcript; editing = true },
                             modifier = Modifier.size(26.dp)
                         ) {
                             Icon(
-                                Icons.Filled.Edit, "Edit transcript",
+                                Icons.Filled.Edit, s.editTranscript,
                                 tint = TextMuted, modifier = Modifier.size(14.dp)
                             )
                         }
@@ -196,9 +198,7 @@ fun MemoRow(
                 Icon(Icons.Filled.PlaylistAddCheck, null, modifier = Modifier.size(17.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (taskCount > 0)
-                        "Add $taskCount task${if (taskCount == 1) "" else "s"} to checklist"
-                    else "No tasks found",
+                    if (taskCount > 0) s.addTasksToList(taskCount) else s.noTasksFound,
                     fontSize = 13.sp, fontWeight = FontWeight.Bold
                 )
             }

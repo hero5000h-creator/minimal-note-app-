@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.Category
 import com.hanooot.notes.data.Note
+import com.hanooot.notes.ui.i18n.LocalStrings
+import com.hanooot.notes.ui.i18n.Strings
+import com.hanooot.notes.ui.i18n.labelOf
 import com.hanooot.notes.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -32,6 +35,7 @@ fun NoteCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val s = LocalStrings.current
     val accent = categoryColor(category)
     val complete = note.categoryKey == Category.DONE_KEY
 
@@ -56,7 +60,7 @@ fun NoteCard(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    note.title.ifBlank { "Untitled" },
+                    note.title.ifBlank { s.untitled },
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (complete) TextSecondary else TextPrimary,
@@ -92,7 +96,7 @@ fun NoteCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            formatDue(due),
+                            formatDue(due, s),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (soon) accent else TextSecondary
@@ -101,7 +105,7 @@ fun NoteCard(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    (category?.label ?: "").uppercase(),
+                    s.labelOf(category).uppercase(),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = accent,
@@ -109,7 +113,7 @@ fun NoteCard(
                 )
             }
 
-            val preview = previewFor(note)
+            val preview = previewFor(note, s)
             if (preview.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -125,32 +129,33 @@ fun NoteCard(
     }
 }
 
-private fun previewFor(note: Note): String {
+private fun previewFor(note: Note, s: Strings): String {
     if (note.memos.isNotEmpty() && note.content.isBlank() && note.checklist.isEmpty()) {
-        val n = note.memos.size
-        return "$n recording${if (n == 1) "" else "s"}"
+        return s.recordingsCount(note.memos.size)
     }
     if (note.checklist.isNotEmpty()) {
         val left = note.checklist.count { !it.done }
-        return if (left == 0) "All items done"
-        else "$left item${if (left == 1) "" else "s"} left"
+        return if (left == 0) s.allItemsDone else s.itemsLeft(left)
     }
     return note.content
 }
 
-private fun formatDue(millis: Long): String {
+private fun formatDue(millis: Long, s: Strings): String {
     val now = Calendar.getInstance()
     val due = Calendar.getInstance().apply { timeInMillis = millis }
-    val time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(millis)).lowercase()
+    // lowercase() with the active locale: "PM" becomes "pm" in English and is
+    // left alone in Arabic, where case does not exist.
+    val time = SimpleDateFormat(s.timePattern, s.locale)
+        .format(Date(millis)).lowercase(s.locale)
 
     val sameDay = now.get(Calendar.YEAR) == due.get(Calendar.YEAR) &&
             now.get(Calendar.DAY_OF_YEAR) == due.get(Calendar.DAY_OF_YEAR)
-    if (sameDay) return "Today $time"
+    if (sameDay) return "${s.today} $time"
 
     now.add(Calendar.DAY_OF_YEAR, 1)
     val tomorrow = now.get(Calendar.YEAR) == due.get(Calendar.YEAR) &&
             now.get(Calendar.DAY_OF_YEAR) == due.get(Calendar.DAY_OF_YEAR)
-    if (tomorrow) return "Tomorrow $time"
+    if (tomorrow) return "${s.tomorrow} $time"
 
-    return SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(millis))
+    return SimpleDateFormat(s.monthDayPattern, s.locale).format(Date(millis))
 }

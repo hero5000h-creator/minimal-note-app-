@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hanooot.notes.data.ChecklistItem
+import com.hanooot.notes.ui.i18n.LocalStrings
 import com.hanooot.notes.ui.theme.*
 
 // One checklist row. Only the checkbox animates — re-rendering the whole
@@ -39,6 +40,7 @@ fun ChecklistRow(
     onTextChange: (String) -> Unit,
     onRemove: () -> Unit
 ) {
+    val s = LocalStrings.current
     // Only the checkbox animates; the row itself stays put so ticking an item
     // never looks like the whole list reloaded.
     val scale by animateFloatAsState(
@@ -81,13 +83,13 @@ fun ChecklistRow(
             ),
             cursorBrush = SolidColor(accent),
             decorationBox = { inner ->
-                if (item.text.isEmpty()) Text("List item", color = TextMuted, fontSize = 16.sp)
+                if (item.text.isEmpty()) Text(s.listItemHint, color = TextMuted, fontSize = 16.sp)
                 inner()
             },
             modifier = Modifier.weight(1f)
         )
         IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Filled.Close, "Remove", tint = TextMuted,
+            Icon(Icons.Filled.Close, s.remove, tint = TextMuted,
                 modifier = Modifier.size(15.dp))
         }
     }

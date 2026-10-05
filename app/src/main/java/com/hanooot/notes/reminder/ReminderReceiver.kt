@@ -12,6 +12,10 @@ import androidx.core.app.NotificationManagerCompat
 import com.hanooot.notes.MainActivity
 import com.hanooot.notes.R
 import com.hanooot.notes.data.NotesRepository
+import com.hanooot.notes.data.Settings
+import com.hanooot.notes.ui.i18n.AppStrings
+import com.hanooot.notes.ui.i18n.Lang
+import com.hanooot.notes.ui.i18n.stringsFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,13 +26,15 @@ object ReminderNotifications {
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val mgr = context.getSystemService(NotificationManager::class.java)
-        if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+        // Not skipped when the channel exists: re-creating it with the same id
+        // is how Android renames one, which is what a language change needs.
+        val s = AppStrings.current
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Note reminders",
+            s.channelName,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Reminders for notes with a scheduled time"
+            description = s.channelDescription
             enableVibration(true)
         }
         mgr.createNotificationChannel(channel)
@@ -39,7 +45,8 @@ class ReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val noteId = intent.getLongExtra(ReminderScheduler.EXTRA_NOTE_ID, -1L)
-        val title = intent.getStringExtra(ReminderScheduler.EXTRA_TITLE) ?: "Reminder"
+        val title = intent.getStringExtra(ReminderScheduler.EXTRA_TITLE)
+            ?: AppStrings.current.reminderFallbackTitle
         val body = intent.getStringExtra(ReminderScheduler.EXTRA_BODY) ?: ""
 
         ReminderNotifications.ensureChannel(context)
@@ -86,6 +93,11 @@ class BootReceiver : BroadcastReceiver() {
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // Nothing has run since the restart, so the language has to be
+                // loaded before any reminder text is built.
+                val saved = runCatching { Settings(appContext).languageOnce() }.getOrNull()
+                AppStrings.current = stringsFor(Lang.of(saved))
+
                 val repo = NotesRepository(appContext)
                 ReminderScheduler.rescheduleAll(appContext, repo.allNotes())
             } finally {
