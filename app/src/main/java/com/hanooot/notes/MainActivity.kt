@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import com.hanooot.notes.cloud.BackupManager
+import com.hanooot.notes.cloud.SigningInfo
 import com.hanooot.notes.ui.components.BackupDialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -119,9 +120,27 @@ class MainActivity : ComponentActivity() {
                     } catch (e: ApiException) {
                         // Code 12501 is the user backing out, which is not an error.
                         if (e.statusCode != 12501) {
-                            vm.post(s.signInFailed, "code ${e.statusCode}")
+                            // 10 is DEVELOPER_ERROR: the package name and
+                            // fingerprint do not match a registered client.
+                            val detail = if (e.statusCode == 10) s.developerError
+                                         else "code ${e.statusCode}"
+                            vm.post(s.signInFailed, detail)
                         }
                     }
+                }
+
+                // Granting Drive access is a second consent after sign-in, so
+                // the prompt Play Services hands back is shown rather than
+                // dropped — otherwise it loops back to a sign-in that worked.
+                val pendingConsent by vm.pendingConsent.collectAsState()
+                val consentLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    vm.consentHandled()
+                    if (result.resultCode == RESULT_OK) vm.backUpNow()
+                }
+                LaunchedEffect(pendingConsent) {
+                    pendingConsent?.let { consentLauncher.launch(it) }
                 }
 
                 // Leaving the app is the natural moment to back up: the note
@@ -307,6 +326,8 @@ class MainActivity : ComponentActivity() {
                         email = account,
                         lastBackupLabel = lastLabel,
                         busy = backupBusy,
+                        packageName = SigningInfo.packageName(this@MainActivity),
+                        fingerprint = SigningInfo.sha1(this@MainActivity),
                         onSignIn = {
                             signInLauncher.launch(
                                 BackupManager.client(this@MainActivity).signInIntent

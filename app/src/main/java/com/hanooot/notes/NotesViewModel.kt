@@ -65,6 +65,16 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     private val _backupBusy = MutableStateFlow<String?>(null)
     val backupBusy: StateFlow<String?> = _backupBusy
 
+    /**
+     * A prompt Play Services wants shown before Drive will answer — granting
+     * the Drive scope is a separate consent from signing in. The activity
+     * launches it and clears it.
+     */
+    private val _pendingConsent = MutableStateFlow<android.content.Intent?>(null)
+    val pendingConsent: StateFlow<android.content.Intent?> = _pendingConsent
+
+    fun consentHandled() { _pendingConsent.value = null }
+
     init {
         viewModelScope.launch {
             repo.seedDefaults()
@@ -171,10 +181,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
                     settings.setLastBackupAt(System.currentTimeMillis())
                     post(s.backupDone(result.notes), s.audioUploaded(result.memos))
                 }
-                is BackupManager.Result.NeedsSignIn -> {
-                    _account.value = null
-                    post(s.signInNeeded)
-                }
+                is BackupManager.Result.NeedsSignIn -> onNeedsConsent(result.intent)
                 is BackupManager.Result.Failed -> post(s.backupFailed, result.reason)
                 BackupManager.Result.NoBackup -> post(s.noBackupFound)
             }
@@ -193,6 +200,21 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         backUpNow()
     }
 
+    /**
+     * Consent can be recoverable or not. With a prompt to show, the account
+     * stays — it is still signed in, it just has not granted Drive yet.
+     */
+    private fun onNeedsConsent(intent: android.content.Intent?) {
+        val s = AppStrings.current
+        if (intent != null) {
+            _pendingConsent.value = intent
+            post(s.grantDriveAccess)
+        } else {
+            _account.value = null
+            post(s.signInNeeded)
+        }
+    }
+
     fun restoreFromDrive() {
         if (_backupBusy.value != null) return
         val s = AppStrings.current
@@ -208,10 +230,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
                     post(s.restoreDone(result.notes))
                 }
                 BackupManager.Result.NoBackup -> post(s.noBackupFound)
-                is BackupManager.Result.NeedsSignIn -> {
-                    _account.value = null
-                    post(s.signInNeeded)
-                }
+                is BackupManager.Result.NeedsSignIn -> onNeedsConsent(result.intent)
                 is BackupManager.Result.Failed -> post(s.backupFailed, result.reason)
             }
         }

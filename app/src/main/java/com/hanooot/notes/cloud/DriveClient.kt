@@ -2,6 +2,7 @@ package com.hanooot.notes.cloud
 
 import android.accounts.Account
 import android.content.Context
+import android.content.Intent
 import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.UserRecoverableAuthException
 import kotlinx.coroutines.Dispatchers
@@ -35,9 +36,19 @@ object DriveClient {
     private const val FILES = "https://www.googleapis.com/drive/v3/files"
     private const val UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
 
-    /** Raised when Drive refuses the request; the message is shown to the user. */
-    class DriveException(message: String, val needsConsent: Boolean = false) :
-        IOException(message)
+    /**
+     * Raised when Drive refuses the request; the message is shown to the user.
+     *
+     * @param recoveryIntent the prompt that fixes it, when Play Services
+     *        supplies one. Granting Drive access is a second consent after
+     *        sign-in, and dropping this intent leaves the user bouncing back
+     *        to a sign-in that already succeeded.
+     */
+    class DriveException(
+        message: String,
+        val needsConsent: Boolean = false,
+        val recoveryIntent: Intent? = null
+    ) : IOException(message)
 
     /**
      * An OAuth access token for [account].
@@ -51,7 +62,11 @@ object DriveClient {
             try {
                 GoogleAuthUtil.getToken(context, account, SCOPE)
             } catch (e: UserRecoverableAuthException) {
-                throw DriveException(e.message ?: "Authorisation needed", needsConsent = true)
+                throw DriveException(
+                    e.message ?: "Authorisation needed",
+                    needsConsent = true,
+                    recoveryIntent = e.intent
+                )
             }
         }
 

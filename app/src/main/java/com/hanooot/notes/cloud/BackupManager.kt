@@ -77,7 +77,7 @@ class BackupManager(private val context: Context, private val repo: NotesReposit
             }
             Result.Ok(notes.size, uploaded)
         } catch (e: DriveClient.DriveException) {
-            if (e.needsConsent) Result.NeedsSignIn(null)
+            if (e.needsConsent) Result.NeedsSignIn(e.recoveryIntent)
             else Result.Failed(e.message.orEmpty())
         } catch (e: Exception) {
             Result.Failed(e.message ?: e.javaClass.simpleName)
@@ -122,7 +122,7 @@ class BackupManager(private val context: Context, private val repo: NotesReposit
             repo.replaceAll(decoded.notes, decoded.categories)
             Result.Ok(decoded.notes.size, restoredAudio)
         } catch (e: DriveClient.DriveException) {
-            if (e.needsConsent) Result.NeedsSignIn(null)
+            if (e.needsConsent) Result.NeedsSignIn(e.recoveryIntent)
             else Result.Failed(e.message.orEmpty())
         } catch (e: Exception) {
             Result.Failed(e.message ?: e.javaClass.simpleName)

@@ -17,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,8 @@ fun BackupDialog(
     email: String?,
     lastBackupLabel: String,
     busy: String?,
+    packageName: String,
+    fingerprint: String,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onBackUp: () -> Unit,
@@ -180,6 +184,18 @@ fun BackupDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(s.signOut, color = TextMuted, fontSize = 13.sp) }
                 }
+
+                Spacer(Modifier.height(16.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(CardStroke))
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    s.setupHeading,
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextMuted
+                )
+                Spacer(Modifier.height(6.dp))
+                CopyableValue(s.packageLabel, packageName)
+                Spacer(Modifier.height(6.dp))
+                CopyableValue(s.fingerprintLabel, fingerprint)
             }
         }
     )
@@ -204,5 +220,50 @@ private fun ActionRow(
         Icon(icon, null, tint = tint, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(11.dp))
         Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = tint)
+    }
+}
+
+/**
+ * A label and its value, copied to the clipboard on tap.
+ *
+ * The fingerprint has to be typed into a browser on another device, so making
+ * it selectable matters more than making it pretty.
+ */
+@Composable
+private fun CopyableValue(label: String, value: String) {
+    val s = LocalStrings.current
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(1400)
+            copied = false
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable {
+                clipboard.setText(AnnotatedString(value))
+                copied = true
+            }
+            .padding(vertical = 3.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, fontSize = 10.sp, color = TextMuted)
+            if (copied) {
+                Spacer(Modifier.width(6.dp))
+                Text(s.copiedToClipboard, fontSize = 10.sp, color = DoneGreen)
+            }
+        }
+        Text(
+            value,
+            fontSize = 11.sp,
+            color = TextSecondary,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
     }
 }

@@ -176,6 +176,13 @@ data class Strings(
     val autoBackupNote: String,
     val driveFolderNote: String,
 
+    val setupHeading: String,
+    val packageLabel: String,
+    val fingerprintLabel: String,
+    val copiedToClipboard: String,
+    val developerError: String,
+    val grantDriveAccess: String,
+
     // ---- Date patterns ----
     val duePattern: String,
     val timePattern: String,
@@ -341,6 +348,13 @@ val EnglishStrings = Strings(
     restoreConfirm = "Replace and restore",
     autoBackupNote = "Backs up on its own when you leave the app, at most once every 15 minutes.",
     driveFolderNote = "Saved in a \"Hanooot Notes Backup\" folder you can open in Drive yourself.",
+
+    setupHeading = "REGISTERED IN GOOGLE CLOUD AS",
+    packageLabel = "Package name",
+    fingerprintLabel = "SHA-1 fingerprint",
+    copiedToClipboard = "Copied",
+    developerError = "Not registered in Google Cloud — compare the two values below",
+    grantDriveAccess = "Allow access to Drive to finish",
 
     duePattern = "EEE, MMM d · h:mm a",
     timePattern = "h:mm a",
@@ -517,6 +531,13 @@ val ArabicStrings = Strings(
     restoreConfirm = "استبدل واستعد",
     autoBackupNote = "ينسخ تلقائياً عند خروجك من التطبيق، بحد أقصى مرة كل 15 دقيقة.",
     driveFolderNote = "يُحفظ في مجلد «Hanooot Notes Backup» تگدر تفتحه في Drive بنفسك.",
+
+    setupHeading = "مسجَّل في Google Cloud بـ",
+    packageLabel = "اسم الحزمة",
+    fingerprintLabel = "بصمة SHA-1",
+    copiedToClipboard = "تم النسخ",
+    developerError = "غير مسجَّلة في Google Cloud — طابق القيمتين بالأسفل",
+    grantDriveAccess = "اسمح بالوصول إلى Drive لإكمال العملية",
 
     duePattern = "EEE، d MMM · h:mm a",
     timePattern = "h:mm a",
