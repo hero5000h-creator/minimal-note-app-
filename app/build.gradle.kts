@@ -24,7 +24,10 @@ android {
     // The password can come from the environment, so swapping in a private
     // key later needs a repo secret and no code change.
     val keystoreFile = rootProject.file("keystore/notes.keystore")
-    val keystorePassword = System.getenv("SIGNING_PASSWORD") ?: "hanooot"
+    // An absent secret arrives as an empty string rather than as unset, so a
+    // plain null check would leave the password blank.
+    val keystorePassword = System.getenv("SIGNING_PASSWORD")
+        ?.takeIf { it.isNotBlank() } ?: "hanooot"
 
     signingConfigs {
         getByName("debug") {
