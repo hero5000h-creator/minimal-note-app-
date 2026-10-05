@@ -26,6 +26,14 @@ interface NoteDao {
 
     @Query("UPDATE notes SET categoryKey = :fallback, previousCategoryKey = NULL WHERE categoryKey = :key")
     suspend fun reassignCategory(key: String, fallback: String)
+
+    // Restoring from a backup replaces the lot, so the ids in the file stay
+    // the ids on the phone.
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(notes: List<Note>)
+
+    @Query("DELETE FROM notes")
+    suspend fun clear()
 }
 
 @Dao
@@ -47,6 +55,12 @@ interface CategoryDao {
 
     @Query("SELECT COALESCE(MAX(sortOrder), 0) FROM categories")
     suspend fun maxSortOrder(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun replaceAll(categories: List<Category>)
+
+    @Query("DELETE FROM categories")
+    suspend fun clear()
 }
 
 @Database(entities = [Note::class, Category::class], version = 1, exportSchema = false)

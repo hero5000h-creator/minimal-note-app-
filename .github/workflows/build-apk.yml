@@ -24,9 +24,44 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      # A private key, if one has been added as a secret, wins over the one in
+      # the repo. Nothing breaks when the secret is absent.
+      - name: Use the private signing key when available
+        if: env.KEYSTORE != ''
+        env:
+          KEYSTORE: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p keystore
+          printf '%s' "$KEYSTORE" | base64 -d > keystore/notes.keystore
+          echo "Using the signing key from repository secrets."
+
+      # Google Sign-In only works when this fingerprint is registered against
+      # the app's package name in the Google Cloud console, so the build prints
+      # it rather than leaving it to be dug out with keytool.
+      - name: Report the signing fingerprint
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          PASS="${SIGNING_PASSWORD:-hanooot}"
+          SHA1=$(keytool -list -v -keystore keystore/notes.keystore -alias notes \
+                   -storepass "$PASS" 2>/dev/null \
+                 | grep -m1 'SHA1:' | sed 's/.*SHA1: //')
+          {
+            echo "## Google Sign-In fingerprint"
+            echo ""
+            echo "Package name: \`com.hanooot.notes\`"
+            echo ""
+            echo "SHA-1: \`${SHA1}\`"
+            echo ""
+            echo "Both must be registered as an Android OAuth client at"
+            echo "console.cloud.google.com for sign-in to work."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build debug APK
         id: build
         continue-on-error: true
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
           set -o pipefail
           gradle assembleDebug --no-daemon --console=plain 2>&1 | tee build.log

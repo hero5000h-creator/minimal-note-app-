@@ -25,6 +25,21 @@ class NotesRepository(context: Context) {
 
     suspend fun noteById(id: Long): Note? = notes.byId(id)
     suspend fun allNotes(): List<Note> = notes.all()
+    suspend fun allCategories(): List<Category> = categories.all()
+
+    /**
+     * Swaps the whole contents for a restored backup.
+     *
+     * The defaults are re-seeded afterwards so a backup made before a built-in
+     * category existed still comes back with a complete tab strip.
+     */
+    suspend fun replaceAll(restoredNotes: List<Note>, restoredCategories: List<Category>) {
+        notes.clear()
+        categories.clear()
+        categories.replaceAll(restoredCategories)
+        categories.insertAll(Category.defaults())
+        notes.insertAll(restoredNotes)
+    }
 
     /**
      * Applies the Done rule, then persists.

@@ -55,6 +55,9 @@ fun HomeScreen(
     onAddCategory: () -> Unit,
     onDeleteCategory: (Category) -> Unit,
     onOpenThemes: () -> Unit,
+    onOpenBackup: () -> Unit,
+    /** Tints the cloud icon once an account is connected. */
+    backupActive: Boolean,
     showCalendar: Boolean,
     onToggleCalendar: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -136,6 +139,13 @@ fun HomeScreen(
                     if (searchOpen) Icons.Filled.Close else Icons.Filled.Search,
                     s.search,
                     tint = if (searchOpen) theme.accent else TextSecondary
+                )
+            }
+            IconButton(onClick = onOpenBackup) {
+                Icon(
+                    if (backupActive) Icons.Filled.CloudDone else Icons.Filled.CloudOff,
+                    s.backup,
+                    tint = if (backupActive) theme.accent else TextSecondary
                 )
             }
             IconButton(onClick = onOpenThemes) {

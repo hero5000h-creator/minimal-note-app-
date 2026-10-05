@@ -14,6 +14,13 @@ captures/
 # Keystores — never commit signing keys
 *.jks
 *.keystore
+# Exception: Google Sign-In binds to the signing certificate's SHA-1, and CI
+# generates a fresh debug key on every run, which would break sign-in with
+# each new build. This one key is committed so the fingerprint is stable.
+# It signs a sideloaded personal build only — never publish with it. To use a
+# private key instead, add the repo secret SIGNING_KEYSTORE_BASE64 (and
+# SIGNING_PASSWORD); the workflow prefers the secret when it is present.
+!keystore/notes.keystore
 
 # OS
 .DS_Store

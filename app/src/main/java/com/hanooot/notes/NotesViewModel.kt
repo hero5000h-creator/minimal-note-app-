@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hanooot.notes.audio.AudioRecorder
 import com.hanooot.notes.audio.Transcriber
+import com.hanooot.notes.cloud.BackupManager
 import com.hanooot.notes.data.*
 import com.hanooot.notes.reminder.ReminderScheduler
 import com.hanooot.notes.ui.i18n.AppStrings
@@ -29,6 +30,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = NotesRepository(app)
     private val settings = Settings(app)
+    private val backups = BackupManager(app, repo)
 
     val recorder = AudioRecorder(app)
     val transcriber = Transcriber(app)
@@ -49,6 +51,19 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _messages = MutableStateFlow<UiMessage?>(null)
     val messages: StateFlow<UiMessage?> = _messages
+
+    // ---- Backup ----
+
+    /** The signed-in address, or null. Play Services is the source of truth. */
+    private val _account = MutableStateFlow(BackupManager.account(app)?.email)
+    val account: StateFlow<String?> = _account
+
+    val lastBackupAt = settings.lastBackupAt
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+
+    /** Non-null while a backup or restore is running, holding its label. */
+    private val _backupBusy = MutableStateFlow<String?>(null)
+    val backupBusy: StateFlow<String?> = _backupBusy
 
     init {
         viewModelScope.launch {
@@ -132,6 +147,74 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteMemoFile(memo: Memo) {
         viewModelScope.launch { repo.deleteMemoFile(memo) }
+    }
+
+    /** Called after the sign-in sheet closes, with the address or null. */
+    fun onSignedIn(email: String?) {
+        _account.value = email
+        if (email != null) backUpNow()
+    }
+
+    fun onSignedOut() {
+        _account.value = null
+    }
+
+    fun backUpNow() {
+        if (_backupBusy.value != null) return
+        val s = AppStrings.current
+        _backupBusy.value = s.backingUp
+        viewModelScope.launch {
+            val result = backups.backUp()
+            _backupBusy.value = null
+            when (result) {
+                is BackupManager.Result.Ok -> {
+                    settings.setLastBackupAt(System.currentTimeMillis())
+                    post(s.backupDone(result.notes), s.audioUploaded(result.memos))
+                }
+                is BackupManager.Result.NeedsSignIn -> {
+                    _account.value = null
+                    post(s.signInNeeded)
+                }
+                is BackupManager.Result.Failed -> post(s.backupFailed, result.reason)
+                BackupManager.Result.NoBackup -> post(s.noBackupFound)
+            }
+        }
+    }
+
+    /**
+     * Runs when the app goes to the background, so a day's notes are never
+     * more than one backup behind. Throttled: leaving and re-entering the app
+     * repeatedly should not mean an upload each time.
+     */
+    fun backUpIfDue() {
+        if (_account.value == null || _backupBusy.value != null) return
+        val age = System.currentTimeMillis() - lastBackupAt.value
+        if (age < 15 * 60_000L) return
+        backUpNow()
+    }
+
+    fun restoreFromDrive() {
+        if (_backupBusy.value != null) return
+        val s = AppStrings.current
+        _backupBusy.value = s.restoring
+        viewModelScope.launch {
+            val result = backups.restore()
+            _backupBusy.value = null
+            when (result) {
+                is BackupManager.Result.Ok -> {
+                    // Reminders were rebuilt from scratch, so the alarms that
+                    // belong to the restored notes have to be re-armed.
+                    ReminderScheduler.rescheduleAll(getApplication(), repo.allNotes())
+                    post(s.restoreDone(result.notes))
+                }
+                BackupManager.Result.NoBackup -> post(s.noBackupFound)
+                is BackupManager.Result.NeedsSignIn -> {
+                    _account.value = null
+                    post(s.signInNeeded)
+                }
+                is BackupManager.Result.Failed -> post(s.backupFailed, result.reason)
+            }
+        }
     }
 
     fun post(text: String, detail: String = "") {

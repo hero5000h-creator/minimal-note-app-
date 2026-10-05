@@ -26,6 +26,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import com.hanooot.notes.cloud.BackupManager
+import com.hanooot.notes.ui.components.BackupDialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -81,6 +88,7 @@ class MainActivity : ComponentActivity() {
                 var editing by remember { mutableStateOf<Note?>(null) }
                 var showCalendar by remember { mutableStateOf(false) }
                 var showThemes by remember { mutableStateOf(false) }
+                var showBackup by remember { mutableStateOf(false) }
                 var showNewCategory by remember { mutableStateOf(false) }
 
                 val snackbar = remember { SnackbarHostState() }
@@ -94,6 +102,37 @@ class MainActivity : ComponentActivity() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
+                }
+
+                val account by vm.account.collectAsState()
+                val backupBusy by vm.backupBusy.collectAsState()
+                val lastBackupAt by vm.lastBackupAt.collectAsState()
+
+                // Google's sheet returns through an activity result; the
+                // account itself stays with Play Services, not with the app.
+                val signInLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    try {
+                        vm.onSignedIn(task.getResult(ApiException::class.java)?.email)
+                    } catch (e: ApiException) {
+                        // Code 12501 is the user backing out, which is not an error.
+                        if (e.statusCode != 12501) {
+                            vm.post(s.signInFailed, "code ${e.statusCode}")
+                        }
+                    }
+                }
+
+                // Leaving the app is the natural moment to back up: the note
+                // just written is finished, and nothing is waiting on it.
+                val owner = LocalLifecycleOwner.current
+                DisposableEffect(owner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_STOP) vm.backUpIfDue()
+                    }
+                    owner.lifecycle.addObserver(observer)
+                    onDispose { owner.lifecycle.removeObserver(observer) }
                 }
 
                 // The notification channel carries a user-visible name, so it
@@ -124,14 +163,17 @@ class MainActivity : ComponentActivity() {
 
                 // Android's back button must close what is open, not the
                 // app. Without this the system default finishes the activity.
-                BackHandler(enabled = showThemes) { showThemes = false }
-                BackHandler(enabled = showNewCategory && !showThemes) { showNewCategory = false }
-                BackHandler(enabled = editing != null && !showThemes && !showNewCategory) {
-                    editing = null
+                BackHandler(enabled = showBackup) { showBackup = false }
+                BackHandler(enabled = showThemes && !showBackup) { showThemes = false }
+                BackHandler(enabled = showNewCategory && !showThemes && !showBackup) {
+                    showNewCategory = false
                 }
                 BackHandler(
+                    enabled = editing != null && !showThemes && !showNewCategory && !showBackup
+                ) { editing = null }
+                BackHandler(
                     enabled = showCalendar && editing == null &&
-                            !showThemes && !showNewCategory
+                            !showThemes && !showNewCategory && !showBackup
                 ) { showCalendar = false }
 
                 Scaffold(
@@ -156,6 +198,10 @@ class MainActivity : ComponentActivity() {
                                         onAddCategory = { showNewCategory = true },
                                         onDeleteCategory = { vm.deleteCategory(it) },
                                         onOpenThemes = { showThemes = true },
+                                onOpenBackup = { showBackup = true },
+                                backupActive = account != null,
+                                        onOpenBackup = { showBackup = true },
+                                        backupActive = account != null,
                                         showCalendar = showCalendar,
                                         onToggleCalendar = { showCalendar = it }
                                     )
@@ -195,6 +241,8 @@ class MainActivity : ComponentActivity() {
                                 onAddCategory = { showNewCategory = true },
                                 onDeleteCategory = { vm.deleteCategory(it) },
                                 onOpenThemes = { showThemes = true },
+                                onOpenBackup = { showBackup = true },
+                                backupActive = account != null,
                                 showCalendar = showCalendar,
                                 onToggleCalendar = { showCalendar = it }
                             )
@@ -246,6 +294,34 @@ class MainActivity : ComponentActivity() {
                         onSelect = { vm.setTheme(it.key); showThemes = false },
                         onSelectLang = { vm.setLanguage(it) },
                         onDismiss = { showThemes = false }
+                    )
+                }
+                if (showBackup) {
+                    val lastLabel = remember(lastBackupAt, lang) {
+                        if (lastBackupAt == 0L) strings.neverBackedUp
+                        else strings.lastBackup(
+                            java.text.SimpleDateFormat(
+                                strings.duePattern, strings.locale
+                            ).format(java.util.Date(lastBackupAt))
+                        )
+                    }
+                    BackupDialog(
+                        email = account,
+                        lastBackupLabel = lastLabel,
+                        busy = backupBusy,
+                        onSignIn = {
+                            signInLauncher.launch(
+                                BackupManager.client(this@MainActivity).signInIntent
+                            )
+                        },
+                        onSignOut = {
+                            BackupManager.client(this@MainActivity).signOut()
+                            vm.onSignedOut()
+                            showBackup = false
+                        },
+                        onBackUp = { vm.backUpNow() },
+                        onRestore = { vm.restoreFromDrive() },
+                        onDismiss = { showBackup = false }
                     )
                 }
                 if (showNewCategory) {

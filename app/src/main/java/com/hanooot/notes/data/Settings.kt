@@ -2,6 +2,7 @@ package com.hanooot.notes.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +15,7 @@ private val Context.settingsStore by preferencesDataStore("settings")
 
 private val THEME_KEY = stringPreferencesKey("theme")
 private val LANG_KEY = stringPreferencesKey("lang")
+private val LAST_BACKUP_KEY = longPreferencesKey("lastBackupAt")
 
 /** Accent colour and interface language, persisted across launches. */
 class Settings(private val context: Context) {
@@ -28,6 +30,13 @@ class Settings(private val context: Context) {
 
     suspend fun setLanguage(key: String) {
         context.settingsStore.edit { it[LANG_KEY] = key }
+    }
+
+    /** When the last backup finished, in epoch millis; 0 means never. */
+    val lastBackupAt: Flow<Long> = context.settingsStore.data.map { it[LAST_BACKUP_KEY] ?: 0L }
+
+    suspend fun setLastBackupAt(millis: Long) {
+        context.settingsStore.edit { it[LAST_BACKUP_KEY] = millis }
     }
 
     /** For the boot receiver, which has no view model to read from. */

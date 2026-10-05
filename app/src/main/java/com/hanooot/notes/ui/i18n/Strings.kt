@@ -150,6 +150,32 @@ data class Strings(
     val reminderFallbackTitle: String,
     val tapToOpen: String,
 
+    // ---- Backup ----
+    val backup: String,
+    val backupHeading: String,
+    val signInWithGoogle: String,
+    val signInExplainer: String,
+    val signedInAs: String,
+    val signOut: String,
+    val backUpNow: String,
+    val backingUp: String,
+    val restore: String,
+    val restoring: String,
+    val lastBackup: (String) -> String,
+    val neverBackedUp: String,
+    val backupDone: (Int) -> String,
+    val audioUploaded: (Int) -> String,
+    val restoreDone: (Int) -> String,
+    val noBackupFound: String,
+    val backupFailed: String,
+    val signInFailed: String,
+    val signInNeeded: String,
+    val restoreWarningTitle: String,
+    val restoreWarningBody: String,
+    val restoreConfirm: String,
+    val autoBackupNote: String,
+    val driveFolderNote: String,
+
     // ---- Date patterns ----
     val duePattern: String,
     val timePattern: String,
@@ -287,6 +313,34 @@ val EnglishStrings = Strings(
     channelDescription = "Reminders for notes with a scheduled time",
     reminderFallbackTitle = "Reminder",
     tapToOpen = "Tap to open",
+
+    backup = "Backup",
+    backupHeading = "GOOGLE DRIVE BACKUP",
+    signInWithGoogle = "Sign in with Google",
+    signInExplainer = "Your notes are kept on this phone only. Sign in to keep a copy in your own Google Drive.",
+    signedInAs = "Signed in as",
+    signOut = "Sign out",
+    backUpNow = "Back up now",
+    backingUp = "Backing up…",
+    restore = "Restore from Drive",
+    restoring = "Restoring…",
+    lastBackup = { when_ -> "Last backup: ${'$'}when_" },
+    neverBackedUp = "Not backed up yet",
+    backupDone = { n -> "Backed up ${'$'}n note${'$'}{if (n == 1) "" else "s"}" },
+    audioUploaded = { n ->
+        if (n == 0) "Notes and recordings are up to date"
+        else "${'$'}n new recording${'$'}{if (n == 1) "" else "s"} uploaded"
+    },
+    restoreDone = { n -> "Restored ${'$'}n note${'$'}{if (n == 1) "" else "s"}" },
+    noBackupFound = "No backup in Drive yet",
+    backupFailed = "Backup failed",
+    signInFailed = "Sign-in failed",
+    signInNeeded = "Sign in again to reach Drive",
+    restoreWarningTitle = "Restore from Drive?",
+    restoreWarningBody = "Everything on this phone is replaced by the backup. Notes written since the last backup will be lost.",
+    restoreConfirm = "Replace and restore",
+    autoBackupNote = "Backs up on its own when you leave the app, at most once every 15 minutes.",
+    driveFolderNote = "Saved in a \"Hanooot Notes Backup\" folder you can open in Drive yourself.",
 
     duePattern = "EEE, MMM d · h:mm a",
     timePattern = "h:mm a",
@@ -431,6 +485,38 @@ val ArabicStrings = Strings(
     channelDescription = "تنبيهات الملاحظات التي لها وقت محدد",
     reminderFallbackTitle = "تنبيه",
     tapToOpen = "اضغط للفتح",
+
+    backup = "النسخ الاحتياطي",
+    backupHeading = "النسخ الاحتياطي على Google Drive",
+    signInWithGoogle = "تسجيل الدخول بحساب Google",
+    signInExplainer = "ملاحظاتك محفوظة على هذا الهاتف فقط. سجّل الدخول ليُحفظ نسخة منها في Google Drive الخاص بك.",
+    signedInAs = "مسجَّل الدخول بحساب",
+    signOut = "تسجيل الخروج",
+    backUpNow = "انسخ الآن",
+    backingUp = "جارٍ النسخ…",
+    restore = "استعادة من Drive",
+    restoring = "جارٍ الاستعادة…",
+    lastBackup = { when_ -> "آخر نسخة: ${'$'}when_" },
+    neverBackedUp = "لا توجد نسخة احتياطية بعد",
+    backupDone = { n ->
+        arPlural(n, "نُسخت ملاحظة واحدة", "نُسخت ملاحظتان", "نُسخت # ملاحظات", "نُسخت # ملاحظة")
+    },
+    audioUploaded = { n ->
+        if (n == 0) "الملاحظات والتسجيلات محدَّثة"
+        else arPlural(n, "رُفع تسجيل واحد جديد", "رُفع تسجيلان جديدان", "رُفعت # تسجيلات جديدة", "رُفع # تسجيلاً جديداً")
+    },
+    restoreDone = { n ->
+        arPlural(n, "استُعيدت ملاحظة واحدة", "استُعيدت ملاحظتان", "استُعيدت # ملاحظات", "استُعيدت # ملاحظة")
+    },
+    noBackupFound = "ما توجد نسخة احتياطية في Drive",
+    backupFailed = "فشل النسخ الاحتياطي",
+    signInFailed = "فشل تسجيل الدخول",
+    signInNeeded = "سجّل الدخول مرة أخرى للوصول إلى Drive",
+    restoreWarningTitle = "استعادة من Drive؟",
+    restoreWarningBody = "سيُستبدل كل ما على هذا الهاتف بالنسخة الاحتياطية. الملاحظات المكتوبة بعد آخر نسخة ستُفقد.",
+    restoreConfirm = "استبدل واستعد",
+    autoBackupNote = "ينسخ تلقائياً عند خروجك من التطبيق، بحد أقصى مرة كل 15 دقيقة.",
+    driveFolderNote = "يُحفظ في مجلد «Hanooot Notes Backup» تگدر تفتحه في Drive بنفسك.",
 
     duePattern = "EEE، d MMM · h:mm a",
     timePattern = "h:mm a",
